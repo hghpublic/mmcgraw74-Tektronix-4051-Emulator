@@ -1,0 +1,11 @@
+# rust
+/target/
+*.rs.bk
+
+# nodejs
+node_modules/
+.npm-cache/
+npm-cache/
+
+# macos
+.DS_Store
