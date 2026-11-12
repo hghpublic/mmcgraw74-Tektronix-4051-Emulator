@@ -1,0 +1,16 @@
+{
+  "cpu_speed_button": ["x2", "x5", "x10", "x20", "x50", "x100", "x1"],
+  "auto_scaling_button": ["⊞", "⇲"],
+  "display_granularity_button": ["⊙", "⊛", "⊚"],
+  "audio_button": ["‼ mute", "♫ mute"],
+  "default_gpib_devices": [
+    "1: Program loader",
+    "2: Real time clock",
+    "5: 4924 tape drive"
+  ],
+  "reset_display": {
+    "width": 1046,
+    "height": 830,
+    "nonblack_pixels": 0
+  }
+}

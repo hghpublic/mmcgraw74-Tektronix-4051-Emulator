@@ -1,0 +1,57 @@
+{
+  "program": "testdata/inputs/prog.txt",
+  "cpuSpeed": "x100",
+  "captureProcedure": "After AUTO LOAD, wait 20 seconds, pause the emulator, and count raw RGB canvas pixels.",
+  "canvas": {
+    "width": 1046,
+    "height": 830
+  },
+  "modes": [
+    {
+      "control": "⊚",
+      "nonBlackPixels": 58148,
+      "colors": [
+        {
+          "rgb": [0, 240, 0],
+          "pixels": 58068
+        },
+        {
+          "rgb": [0, 200, 0],
+          "pixels": 80
+        }
+      ],
+      "blackPixels": 810032
+    },
+    {
+      "control": "⊙",
+      "nonBlackPixels": 24973,
+      "colors": [
+        {
+          "rgb": [0, 254, 0],
+          "pixels": 24893
+        },
+        {
+          "rgb": [0, 239, 0],
+          "pixels": 80
+        }
+      ],
+      "blackPixels": 843207
+    },
+    {
+      "control": "⊛",
+      "nonBlackPixels": 24973,
+      "colors": [
+        {
+          "rgb": [0, 254, 0],
+          "pixels": 24893
+        },
+        {
+          "rgb": [0, 239, 0],
+          "pixels": 80
+        }
+      ],
+      "blackPixels": 843207
+    }
+  ],
+  "limitations": "The supplied program draws vectors but no alphanumeric output, so this capture does not distinguish the character-size behavior of ⊛. Canvas bounds are excluded because command echo and cursor pixels vary between captures."
+}

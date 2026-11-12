@@ -1,0 +1,28 @@
+{
+  "reference_revision": "b33e20fb3ef41a1db114b602a29a9ba8ce3fdb48",
+  "input": "testdata/inputs/prog.txt",
+  "input_sha256": "f472fc9080151e23d012fd0d1ace2e16904730eb57dc3d9f72a027e144d3b6d1",
+  "tape_file": {
+    "number": 1,
+    "type": "ASCII",
+    "usage": "PROG",
+    "description": "Vector graphics demo",
+    "size": 235
+  },
+  "display": {
+    "width": 1046,
+    "height": 830,
+    "nonblack_pixels": 58148,
+    "green_pixels": 58148,
+    "inclusive_bounds": {
+      "min_x": 16,
+      "min_y": 37,
+      "max_x": 837,
+      "max_y": 742
+    },
+    "rgb_counts": {
+      "0,240,0": 58068,
+      "0,200,0": 80
+    }
+  }
+}

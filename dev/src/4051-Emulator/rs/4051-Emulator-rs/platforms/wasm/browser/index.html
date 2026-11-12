@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Tektronix 4051 Emulator</title>
+    <link rel="stylesheet" href="./style.css">
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <main>
+      <header class="title-bar">
+        <div>
+          <p class="eyebrow">Rust + WebAssembly</p>
+          <h1>Tektronix 4051</h1>
+        </div>
+      </header>
+
+      <nav class="menu-bar" aria-label="Emulator controls">
+        <button id="run-pause" type="button" aria-pressed="false" disabled>Start</button>
+        <button id="reset" type="button" disabled>Reset</button>
+        <div class="menu-speed-control">
+          <label for="speed">CPU speed</label>
+          <select id="speed" disabled>
+            <option value="0">x1</option>
+            <option value="1">x2</option>
+            <option value="2">x5</option>
+            <option value="3">x10</option>
+            <option value="4">x20</option>
+            <option value="5">x50</option>
+            <option value="6">x100</option>
+          </select>
+        </div>
+        <div id="vector-zoom-mode-control" class="menu-speed-control" hidden>
+          <label for="vector-zoom-mode">Display zoom</label>
+          <select id="vector-zoom-mode" disabled>
+            <option value="raster">Raster</option>
+            <option value="vector">Vector</option>
+          </select>
+        </div>
+      </nav>
+
+      <section class="workspace" aria-label="Emulator workspace">
+        <div class="display-column">
+          <section class="display-panel" aria-labelledby="display-heading">
+            <div class="section-heading">
+              <h2 id="display-heading">Display</h2>
+              <span
+                id="renderer-status"
+                class="renderer-status"
+                role="status"
+                aria-live="polite"
+                data-renderer="cpu"
+                aria-label="CPU reference renderer"
+              >CPU reference</span>
+              <span
+                id="basic-input-status"
+                class="basic-input-status is-disabled"
+                role="status"
+                aria-live="polite"
+                aria-label="Machine stopped"
+              >BASIC</span>
+            </div>
+            <div id="display-surface" class="display-surface">
+              <canvas id="screen" aria-label="Tektronix 4051 display"></canvas>
+              <canvas id="screen-webgpu" aria-label="Tektronix 4051 WebGPU display" hidden></canvas>
+              <textarea
+                id="keyboard-input"
+                class="keyboard-input"
+                aria-label="Keyboard input for the emulator"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                tabindex="-1"
+              ></textarea>
+            </div>
+            <p class="help-text">Click the display or focus keyboard to type. Scroll to zoom around the pointer (0.25×–8×), left-drag to pan, and right-click to reset the view.</p>
+            <p id="basic-prompt-status" class="help-text" role="status" aria-live="polite">
+              Start the emulator before the machine can process keyboard input.
+            </p>
+          </section>
+
+          <div class="status-bar" aria-label="Machine status">
+            <span id="status-busy" class="status-lamp" role="img" aria-label="BUSY off">BUSY</span>
+            <span id="status-break" class="status-lamp" role="img" aria-label="BREAK off">BREAK</span>
+            <span id="status-io" class="status-lamp" role="img" aria-label="I/O off">I/O</span>
+            <span id="status-power" class="status-lamp" role="img" aria-label="POWER off">POWER</span>
+          </div>
+        </div>
+
+        <details id="tools-panel" class="tool-panel">
+          <summary>
+            <span>Tools</span>
+          </summary>
+          <div class="tool-panel-content">
+            <div class="tool-tabs" role="tablist" aria-label="Tools">
+              <button
+                id="flash-drive-tab"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-controls="flash-drive-panel"
+                tabindex="0"
+              >Flash Drive</button>
+              <button
+              id="editor-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="editor-panel"
+              tabindex="-1"
+              >Editor</button>
+              <button
+                id="controls-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="controls-panel"
+                tabindex="-1"
+              >Controls</button>
+              <button
+                id="workload-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="workload-panel"
+                tabindex="-1"
+              >Workload</button>
+              <button
+                id="test-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="test-panel"
+                tabindex="-1"
+              >Test</button>
+            </div>
+            <section
+              id="flash-drive-panel"
+              class="tool-tab-panel"
+              role="tabpanel"
+              aria-labelledby="flash-drive-tab"
+              tabindex="0"
+            >
+              <div class="section-heading">
+                <h2>Flash Drive</h2>
+                <span id="flash-file-count">0 stored files</span>
+              </div>
+              <div class="flash-actions">
+                <button id="import-files" type="button" disabled>Import files / ZIP…</button>
+                <input id="import-files-picker" type="file" multiple hidden disabled>
+                <button id="restore-archive" type="button" disabled>Restore archive…</button>
+                <input id="restore-archive-picker" type="file" accept=".zip,application/zip" hidden disabled>
+                <button id="clear-flash-drive" type="button" disabled>Clear Flash Drive</button>
+                <button id="auto-load" type="button" disabled>Auto Load file 1</button>
+                <button id="cancel-auto-load" type="button" disabled hidden>Cancel Auto Load</button>
+              </div>
+              <p id="basic-prompt-notice" class="flash-status error" role="status" aria-live="polite" hidden></p>
+              <div class="flash-actions">
+                <label for="export-file-number">Export file number</label>
+                <input id="export-file-number" type="number" min="1" max="254" value="1" disabled>
+                <button id="export-file" type="button" disabled>Download file</button>
+                <button id="export-archive" type="button" disabled>Download archive</button>
+                <button id="launch-file" type="button" disabled>Launch selected program</button>
+              </div>
+              <p class="help-text">
+                File and ZIP imports add files. Restoring an archive replaces the entire in-memory directory.
+                Auto Load temporarily disables Flash Drive operations while typing; cancel it if the sequence
+                needs to stop. BASIC readiness is detected automatically when the ROM draws its cursor or INPUT prompt.
+              </p>
+              <div class="directory-scroll">
+                <table id="flash-directory" tabindex="0" aria-label="Flash Drive directory">
+                  <thead>
+                    <tr>
+                      <th scope="col">Number</th>
+                      <th scope="col">Type</th>
+                      <th scope="col">Usage</th>
+                      <th scope="col">Bytes</th>
+                      <th scope="col">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody id="flash-directory-body"></tbody>
+                </table>
+              </div>
+              <p id="flash-status" class="flash-status" role="status" aria-live="polite">
+                No files stored.
+              </p>
+              <ul id="flash-notices" class="flash-notices" aria-label="Flash Drive operation notices"></ul>
+            </section>
+            <section
+              id="editor-panel"
+              class="tool-tab-panel"
+              role="tabpanel"
+              aria-labelledby="editor-tab"
+              tabindex="0"
+              hidden
+            >
+              <div class="section-heading">
+                <h2>BASIC editor</h2>
+              </div>
+              <div class="editor-toolbar">
+                <label for="basic-editor-filename">Filename</label>
+                <input id="basic-editor-filename" type="text" value="BASIC Program" autocomplete="off">
+                <button id="basic-editor-load" type="button">Load .bas…</button>
+                <input id="basic-editor-load-picker" type="file" accept=".bas,text/plain" hidden>
+                <button id="basic-editor-save" type="button">Save .bas…</button>
+                <button id="basic-editor-run-mode" type="button" aria-pressed="false">Run mode: Keyboard</button>
+                <button id="basic-editor-run" type="button">Run</button>
+              </div>
+              <p class="help-text">
+                Enter one numbered BASIC statement per line (for example, <code>10 PRINT 2+3</code>).
+                Run resets the machine and starts a fresh BASIC program. Keyboard mode types the
+                source at the machine-detected prompt; Temporary File mode loads it from private
+                temporary tape storage without changing the visible Flash Drive. Loading a complete
+                Flash Drive filename fills this field with only its description. Save asks for an
+                output folder and writes the generated filename there; replacing an existing file
+                requires confirmation. Folder selection must be supported by the browser.
+              </p>
+              <div class="basic-editor">
+                <pre id="basic-editor-line-numbers" class="basic-editor-line-numbers" aria-hidden="true">1</pre>
+                <textarea
+                  id="basic-editor-source"
+                  aria-label="Numbered BASIC source"
+                  rows="18"
+                  spellcheck="false"
+                  wrap="off"
+                  placeholder="10 PRINT 2+3&#10;20 END"
+                ></textarea>
+              </div>
+              <p id="basic-editor-status" class="flash-status" role="status" aria-live="polite">
+                Ready. Enter numbered BASIC source.
+              </p>
+            </section>
+            <section
+              id="controls-panel"
+              class="tool-tab-panel"
+              role="tabpanel"
+              aria-labelledby="controls-tab"
+              tabindex="0"
+              hidden
+            >
+              <section class="controls" aria-label="Emulator controls">
+                <div class="button-row">
+                  <button id="focus-keyboard" type="button">Focus keyboard</button>
+                  <label class="checkbox-control">
+                    <input id="caps-lock" type="checkbox" disabled>
+                    Caps Lock
+                  </label>
+                </div>
+                <div class="select-row">
+                  <label>
+                    Display granularity
+                    <select id="granularity" disabled>
+                      <option value="Fine">Fine</option>
+                      <option value="Coarse">Coarse</option>
+                      <option value="Mixed">Mixed</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+
+              <section class="front-panel" aria-labelledby="front-panel-heading">
+                <div class="section-heading">
+                  <h2 id="front-panel-heading">Front panel</h2>
+                  <span>Hold Shift for alternate functions</span>
+                </div>
+                <div class="panel-row" role="group" aria-labelledby="user-definable-keys-heading">
+                  <h3 id="user-definable-keys-heading" class="panel-label">User Definable</h3>
+                  <div class="panel-keys user-key-grid">
+                    <button type="button" data-tek-code="0x60" data-tek-shift="false" disabled>1</button>
+                    <button type="button" data-tek-code="0x61" data-tek-shift="false" disabled>2</button>
+                    <button type="button" data-tek-code="0x62" data-tek-shift="false" disabled>3</button>
+                    <button type="button" data-tek-code="0x63" data-tek-shift="false" disabled>4</button>
+                    <button type="button" data-tek-code="0x64" data-tek-shift="false" disabled>5</button>
+                    <button type="button" data-tek-code="0x65" data-tek-shift="false" disabled>6</button>
+                    <button type="button" data-tek-code="0x66" data-tek-shift="false" disabled>7</button>
+                    <button type="button" data-tek-code="0x67" data-tek-shift="false" disabled>8</button>
+                    <button type="button" data-tek-code="0x68" data-tek-shift="false" disabled>9</button>
+                    <button type="button" data-tek-code="0x69" data-tek-shift="false" disabled>10</button>
+                    <button type="button" data-tek-code="0x60" data-tek-shift="true" disabled>11</button>
+                    <button type="button" data-tek-code="0x61" data-tek-shift="true" disabled>12</button>
+                    <button type="button" data-tek-code="0x62" data-tek-shift="true" disabled>13</button>
+                    <button type="button" data-tek-code="0x63" data-tek-shift="true" disabled>14</button>
+                    <button type="button" data-tek-code="0x64" data-tek-shift="true" disabled>15</button>
+                    <button type="button" data-tek-code="0x65" data-tek-shift="true" disabled>16</button>
+                    <button type="button" data-tek-code="0x66" data-tek-shift="true" disabled>17</button>
+                    <button type="button" data-tek-code="0x67" data-tek-shift="true" disabled>18</button>
+                    <button type="button" data-tek-code="0x68" data-tek-shift="true" disabled>19</button>
+                    <button type="button" data-tek-code="0x69" data-tek-shift="true" disabled>20</button>
+                  </div>
+                </div>
+                <div class="panel-row" role="group" aria-labelledby="line-editor-heading">
+                  <h3 id="line-editor-heading" class="panel-label">Line Editor</h3>
+                  <div class="panel-keys line-editor-key-grid">
+                    <button type="button" data-tek-code="0x70" data-tek-shift="true" disabled>Compress</button>
+                    <button type="button" data-tek-code="0x71" data-tek-shift="true" disabled>Rub Out Left</button>
+                    <button type="button" data-tek-code="0x72" data-tek-shift="true" disabled>Rub Out Right</button>
+                    <button type="button" data-tek-code="0x73" data-tek-shift="true" disabled>Reprint</button>
+                    <button type="button" aria-label="Recall Next Line" data-tek-code="0x74" data-tek-shift="true" disabled>Recall<br>Next Line</button>
+                    <button type="button" data-tek-code="0x70" data-tek-shift="false" disabled>Expand</button>
+                    <button type="button" data-tek-code="0x71" data-tek-shift="false" disabled>Back Space</button>
+                    <button type="button" data-tek-code="0x72" data-tek-shift="false" disabled>Space</button>
+                    <button type="button" data-tek-code="0x73" data-tek-shift="false" disabled>Clear</button>
+                    <button type="button" data-tek-code="0x74" data-tek-shift="false" disabled>Recall Line</button>
+                  </div>
+                </div>
+                <div class="panel-row" role="group" aria-labelledby="program-special-heading">
+                  <h3 id="program-special-heading" class="panel-label">Program and special</h3>
+                  <div class="panel-keys">
+                    <button type="button" data-tek-code="0x75" disabled>Auto Number</button>
+                    <button type="button" data-tek-code="0x76" disabled>Step Program</button>
+                    <button type="button" data-tek-code="0x6a" disabled>Home / Page</button>
+                    <button type="button" data-tek-code="0x5f" disabled>Rub Out</button>
+                    <button type="button" data-tek-code="0x6b" disabled>Break</button>
+                  </div>
+                </div>
+              </section>
+            </section>
+            <section
+              id="workload-panel"
+              class="tool-tab-panel"
+              role="tabpanel"
+              aria-labelledby="workload-tab"
+              tabindex="0"
+              hidden
+            >
+              <div class="section-heading">
+                <h2>Emulation workload</h2>
+              </div>
+              <p id="workload-summary" class="workload-summary"></p>
+              <p class="help-text">
+                Workload (%) runs left to right; time runs down from the newest sample.
+                The red line marks one 10 ms emulation budget.
+              </p>
+              <canvas
+                id="workload-graph"
+                class="workload-graph"
+                role="img"
+                aria-label="Emulation workload graph. Horizontal axis is workload percentage; vertical time axis has the newest sample at the top."
+              ></canvas>
+            </section>
+            <section
+              id="test-panel"
+              class="tool-tab-panel"
+              role="tabpanel"
+              aria-labelledby="test-tab"
+              tabindex="0"
+              hidden
+            >
+              <div class="section-heading">
+                <h2>BASIC display tests</h2>
+              </div>
+              <p class="help-text">
+                Each test clears the display with PAGE and runs a BASIC program. The emulator
+                starts automatically if needed. Tests use line numbers beginning at 100 and
+                replace any existing program lines in that range. Programs draw within a 130 by
+                100 BASIC-coordinate area.
+              </p>
+              <div class="select-row">
+                <label class="checkbox-control" for="vector-zoom-enabled">
+                  <input id="vector-zoom-enabled" type="checkbox" disabled>
+                  Enable vector scene capture (resets emulator)
+                </label>
+              </div>
+              <p class="help-text">
+                Available only with Extended WebGPU. Enabling starts a fresh vector-scene
+                capture after resetting the emulator; the display starts in Raster mode.
+              </p>
+              <p id="vector-zoom-status" class="flash-status" role="status" aria-live="polite">
+                Vector scene capture is disabled.
+              </p>
+              <div class="flash-actions" role="group" aria-label="BASIC display tests">
+                <button id="grid-test" type="button" data-basic-test="grid" disabled>Grid</button>
+                <button id="snake-test" type="button" data-basic-test="snake" disabled>Snake fill</button>
+                <button id="single-circle-test" type="button" data-basic-test="single-circle" disabled>Single circle</button>
+              </div>
+              <p id="basic-test-status" class="flash-status" role="status" aria-live="polite">
+                Ready to run a BASIC display test.
+              </p>
+            </section>
+          </div>
+        </details>
+      </section>
+
+      <p id="error-message" class="error-message" role="alert" hidden></p>
+    </main>
+  </body>
+</html>
