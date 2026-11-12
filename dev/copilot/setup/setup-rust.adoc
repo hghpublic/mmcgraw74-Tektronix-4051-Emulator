@@ -1,0 +1,73 @@
+= Rust Project Setup
+:toc:
+:toclevels: 3
+
+== Purpose and scope
+
+This guide provides reusable Cargo, Rust testing, and egui guidance for a Rust project. It does not decide a target project's feature scope, package layout, supported platforms, or compatibility criteria.
+
+Read link:setup.adoc[the reusable project setup] for repository organization and general Copilot workflow. For this fork's package paths, local conventions, release-performance matrix, and handoff workflow, read link:setup-repository.adoc[the repository setup companion].
+
+== Toolchain and dependencies
+
+* Use Cargo for dependency management, builds, tests, and linting.
+* For a new package, select a Rust edition after checking the chosen dependencies' compiler requirements. Record the selected edition and minimum supported Rust version in the manifest and project documentation.
+* Use egui for the UI and `eframe` for native windowing/application integration when those fit the target project. Select compatible versions and features; do not assume a rendering backend.
+* Commit the application's `Cargo.lock` and validate against it. Generate or update it intentionally when dependencies change.
+* Inspect the installed toolchain and existing manifests before installing tools or selecting versions. Record unavailable checks and compatibility constraints explicitly.
+
+== Package layout and first increment
+
+A small package may begin with:
+
+[source,text]
+----
+<rust-package-directory>/
+  Cargo.toml
+  src/
+    main.rs
+  tests/                 # when public-API integration tests are useful
+----
+
+Start with one independently buildable package unless demonstrated needs justify a workspace. For a workspace, list member packages explicitly and keep each package manifest beside its source directory; the workspace owns the shared lockfile.
+
+Keep application startup focused on initialization and launching the chosen egui integration. Separate deterministic domain or emulator behavior from UI and platform integration where useful for testing. Do not prescribe modules, an ECS, or other abstractions before an implemented feature needs them.
+
+Before scaffolding, inventory the existing application's behavior and dependencies and agree on the first increment's acceptance criteria. A small window-only increment may verify UI/toolchain integration, but it does not demonstrate application compatibility.
+
+== egui and platform boundaries
+
+Follow the selected egui integration's application and repaint lifecycle. Avoid performing long-running work or blocking I/O in a UI update; choose scheduling and state ownership based on measured needs rather than assuming a threading model.
+
+Keep domain rules independent of native graphics APIs. Use the chosen framework's rendering integration and isolate unavoidable platform-specific behavior behind a narrow boundary.
+
+Native desktop and browser builds have different integration requirements. Do not infer a browser target merely because an application uses web technologies. Confirm promised targets before configuring platform-specific dependencies or CI, and validate each promised platform separately.
+
+== Rust validation
+
+Once a package exists, run commands from its directory, or from the workspace root if a workspace is adopted. For a package with a committed lockfile, the baseline is:
+
+[source,shell]
+----
+cargo fmt -- --check
+cargo check --locked
+cargo build --locked
+cargo test --locked
+cargo clippy --locked --all-targets -- -D warnings
+----
+
+Use the smallest relevant package or test selector during iteration. For a workspace-wide milestone, apply the appropriate `--workspace` selectors and `cargo fmt --all -- --check`. Do not claim these commands have passed before a Cargo project exists and they have actually run.
+
+`cargo check` does not verify final linking; retain a linked build for integration milestones. A successful build also does not verify window presentation or input handling: exercise the running application against the increment's acceptance criteria. Test application behavior separately from UI startup.
+
+For cross-platform promises, build and test each supported operating system and any separately promised browser target. Host-only results do not validate other platforms.
+
+== Testing and review
+
+* Use idiomatic Rust, explicit ownership and error propagation, cohesive modules, and abstractions justified by current needs.
+* Test deterministic behavior independently of egui where practical. Add integration tests for genuine component and runtime boundaries.
+* Put public-API integration tests in the package's `tests/` directory, where Cargo discovers them as external consumers. Keep private-API tests with the private implementation test module.
+* Protect observable behavior, important boundaries, and error paths with meaningful assertions. Do not widen production visibility solely for tests or treat coverage percentages as the quality goal.
+* Use focused code-quality and test-quality reviewers when the project provides them. For performance-sensitive changes, use a performance reviewer when representative workloads and comparable measurements exist; report unavailable evidence as inconclusive rather than a pass.
+
+Apply the target language's conventions and the project's requirements rather than assuming every Rust project uses the same comment, test, or review workflow.

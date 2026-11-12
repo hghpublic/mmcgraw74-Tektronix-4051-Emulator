@@ -1,0 +1,73 @@
+= Repository Setup for the Tektronix 4051 Emulator Fork
+:toc:
+:toclevels: 3
+
+== Purpose and scope
+
+This companion records repository-specific guidance for the Tektronix 4051 emulator fork. For reusable workflow guidance, see link:setup.adoc[the general setup guide] and link:setup-rust.adoc[the Rust setup guide].
+
+Treat files inherited from upstream, emulator sources, archives, and program/data assets as read-only unless the user specifically authorizes a change. Keep new port files separate from the upstream implementation. Preserve supplied emulator behavior and assets unless a requested change requires otherwise.
+
+== Rust package and test layout
+
+The root `Cargo.toml` is a virtual workspace manifest with resolver 3. The member manifest at `dev/src/4051-Emulator/rs/4051-Emulator-rs/Cargo.toml` defines package `tek4051-emulator` and its `lib.rs` library target. The workspace shares the root `Cargo.lock` and `target/` directory.
+
+Keep test bodies and helpers out of implementation files:
+
+* Put public-API integration tests in `dev/src/4051-Emulator/rs/4051-Emulator-rs/tests/`, importing the library as an external consumer. Cargo discovers these tests relative to the member manifest without explicit `[[test]]` targets.
+* Put tests requiring private implementation access in separate files declared by private `#[cfg(test)] mod tests;` modules, not in the integration test directory.
+* From the workspace root, `cargo test --locked -p tek4051-emulator` runs the package suites; select focused suites with `cargo test --locked -p tek4051-emulator --test cpu --test machine`.
+
+== Native packaging
+
+For local macOS visual inspection, run:
+
+[source,shell]
+----
+sh dev/src/4051-Emulator/rs/4051-Emulator-rs/platforms/macos/package-macos-app.sh
+----
+
+The script creates a bundle under workspace `target/macos/`. Its bundle identifier lets macOS app-aware inspection tools identify the native window; opening the bundle may register it with the user's Launch Services database. This local debug bundle is not a signed or distributable release.
+
+== Release performance surveillance
+
+For performance-sensitive Rust emulator changes, use the link:../../../.github/agents/rust-emulator-performance-watcher.agent.md[Rust Emulator Performance Watcher]. Survey these four release target/renderer combinations independently:
+
+[cols="1,2,2",options="header"]
+|===
+|Target |CPU fallback |WebGPU
+
+|Native Rust egui
+|eframe Glow with the CPU reference display path
+|eframe Wgpu with the WebGPU vector renderer
+
+|Rust WASM
+|CPU fallback selected at runtime in the browser
+|WebGPU selected at runtime in the browser
+|===
+
+Build the native release variants from the workspace root:
+
+[source,shell]
+----
+cargo build --locked --release -p tek4051-emulator \
+  --no-default-features --features native
+cargo build --locked --release -p tek4051-emulator \
+  --no-default-features --features native,webgpu
+----
+
+The first selects the native Glow/CPU-reference path. The second enables eframe Wgpu and the emulator's WebGPU renderer; confirm which renderer actually initialized at runtime, since startup can fall back to Glow.
+
+The WASM `wasm` feature enables WebGPU at compile time, so both browser renderer cases use the same release WASM build. CPU fallback is selected at runtime by setting `WASM_FORCE_CPU_RENDERER=1` for the existing Playwright benchmark; without that setting, verify that the browser reports WebGPU before treating the run as WebGPU evidence. Follow the build/bind steps and benchmark command in the package's link:../../src/4051-Emulator/rs/4051-Emulator-rs/docs/wasm.typ[WASM guide] and the watcher.
+
+Keep renderer, host/browser, viewport, workload, speed, and release profile matched between baseline and candidate. Prefer three or more runs and report medians and ranges. Track all four matrix entries separately; one target or renderer cannot stand in for another.
+
+The native `benches/battlestar_programs.rs` benchmark measures shared emulation execution, not eframe or renderer performance. Use it only when the changed core behavior and workload are relevant; it cannot substitute for native renderer measurements. When no comparable runtime measurement or renderer is available, mark that matrix entry inconclusive even if the release build succeeds. There is no universal threshold, and CPU-fallback and WebGPU measurements are not interchangeable. Report exact commands, renderer confirmation, measurement conditions, run count, observed variation, and unmeasured paths. Never alter the lockfile or silently switch build profiles to obtain a result.
+
+== Copilot and handoff workflow
+
+Follow the repository's link:../../../.github/copilot-instructions.md[workspace instructions], including its Rust comment conventions and validation requirements. For implementation changes, use the link:../../../.github/agents/rust-code-quality-reviewer.agent.md[Rust Code Quality Reviewer]; for Rust test changes, use the link:../../../.github/agents/rust-test-quality-reviewer.agent.md[Rust Test Quality Reviewer]. The performance watcher complements those reviews and does not replace them.
+
+The local `update-rust-code-comments` and `update-rust-test-comments` skills provide evidence-grounded comment workflows. Follow their stated scopes and the repository-specific requirements in workspace instructions.
+
+Keep the link:../chats/tek4051/tek4051-handoff.md[handoff] current with project status, decisions, blockers, and the next useful action. Append concise, factual chat summaries to one link:../chats/tek4051/session-history/[daily history file] per local calendar date, named `session-history-YYYYMMDD.md`. Record validation evidence and remaining limitations; do not record secrets or unrelated personal information.
