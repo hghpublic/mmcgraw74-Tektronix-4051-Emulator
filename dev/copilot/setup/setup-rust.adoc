@@ -1,0 +1,75 @@
+= Rust Setup for the Tektronix 4051 Emulator Fork
+:toc:
+:toclevels: 3
+
+== Purpose and scope
+
+This is the Rust-specific companion to link:setup.adoc[the reusable project setup]. It adapts the transferable Cargo, validation, and testing guidance for the planned Rust/egui port. It does not create a Cargo package or decide the port's feature scope, package layout, supported platforms, or compatibility criteria.
+
+Treat inherited upstream files, emulator sources, archives, and program/data assets as read-only unless the user specifically authorizes a change. Keep new port files separate from the upstream implementation. This guide authorizes no implementation or upstream-file changes.
+
+== Toolchain and dependencies
+
+* Use Cargo for dependency management, builds, tests, and linting.
+* Consider Rust 2024 edition for a new package after checking the chosen dependencies' compiler requirements. Record the selected edition and minimum supported Rust version in the manifest and port documentation.
+* Use egui for the requested UI. An application framework such as `eframe` is a candidate for windowing and application integration, not an already accepted dependency.
+* Choose compatible dependency versions and features when scaffolding the port; do not copy the source repository's Bevy dependencies or assume a rendering backend.
+* Commit the application's `Cargo.lock` and validate against it. Generate or update it intentionally when dependencies change.
+* Inspect the installed toolchain and existing manifests before installing tools or selecting versions. Record unavailable checks and compatibility constraints explicitly.
+
+== Package layout and first increment
+
+The package name and location remain undecided. The following describes the contents of a future package, not an instruction to create files at the repository root:
+
+[source,text]
+----
+<rust-package-directory>/
+  Cargo.toml
+  src/
+    main.rs
+  tests/                 # when public-API integration tests are useful
+----
+
+Start with one independently buildable package unless demonstrated needs justify a workspace. For a workspace, list member packages explicitly and keep each package manifest beside its source directory; the workspace owns the shared lockfile.
+
+Keep application startup focused on initialization and launching the chosen egui integration. Separate deterministic emulator behavior from UI and platform integration where useful for testing. Do not prescribe modules, an ECS, or other abstractions before an implemented feature needs them.
+
+Before scaffolding, inventory the existing emulator's behavior and dependencies and agree on the first increment's acceptance criteria. A small window-only increment may verify UI/toolchain integration, but it does not demonstrate emulator compatibility.
+
+== egui and platform boundaries
+
+Follow the selected egui integration's application and repaint lifecycle. Avoid performing long-running emulation or blocking I/O in a UI update; choose scheduling and state ownership based on measured needs rather than assuming a threading model.
+
+Keep emulator rules independent of native graphics APIs. Use the chosen framework's rendering integration and isolate unavoidable platform-specific behavior behind a narrow boundary.
+
+Native desktop and browser builds have different integration requirements. Do not infer a browser target merely because the existing emulator uses web technologies. Confirm promised targets before configuring platform-specific dependencies or CI, and validate each promised platform separately.
+
+== Rust validation
+
+Once a package exists, run commands from its directory, or from the workspace root if a workspace is adopted. For a package with a committed lockfile, the baseline is:
+
+[source,shell]
+----
+cargo fmt -- --check
+cargo check --locked
+cargo build --locked
+cargo test --locked
+cargo clippy --locked --all-targets -- -D warnings
+----
+
+Use the smallest relevant package or test selector during iteration. For a workspace-wide milestone, apply the appropriate `--workspace` selectors and `cargo fmt --all -- --check`. Do not claim these commands have passed before a Cargo project exists and they have actually run.
+
+`cargo check` does not verify final linking; retain a linked build for integration milestones. A successful build also does not verify window presentation or input handling: exercise the running application against the increment's acceptance criteria. Test emulator behavior separately from UI startup.
+
+For cross-platform promises, build and test each supported operating system and any separately promised browser target. Host-only results do not validate other platforms.
+
+== Code, tests, and Copilot workflow
+
+* Use idiomatic Rust, explicit ownership and error propagation, cohesive modules, and abstractions justified by current needs.
+* Test deterministic emulator behavior independently of egui where practical. Add integration tests for genuine component and runtime boundaries.
+* The root `Cargo.toml` is a virtual workspace manifest with resolver 3. The member manifest at `dev/src/4051-Emulator/rs/4051-Emulator-rs/Cargo.toml` defines the package and its `lib.rs` library target; the workspace shares the root `Cargo.lock` and `target/` directory.
+* Keep public-API tests in `dev/src/4051-Emulator/rs/4051-Emulator-rs/tests/`, importing the library as an external consumer. Cargo discovers these tests automatically relative to the member manifest, without explicit `[[test]]` targets; `cargo test --locked` runs them from the workspace or member directory, and `cargo test --locked --test cpu --test machine` selects the current suites. Keep tests that genuinely need private implementation access in private `#[cfg(test)] mod tests` modules beside the implementation, not in the integration directory.
+* Protect observable behavior, important boundaries, and error paths with meaningful assertions. Do not widen production visibility solely for tests or treat coverage percentages as the quality goal.
+* Follow the repository-specific comment requirements in the link:../../../.github/copilot-instructions.md[workspace instructions]. The local `update-rust-code-comments` and `update-rust-test-comments` skills provide evidence-grounded review workflows; their general advice does not weaken the repository's required module/group and per-test comment conventions.
+* Follow the link:../../../.github/copilot-instructions.md[workspace instructions] and the local Rust code-quality and test-quality reviewers for implementation increments and test changes.
+* Keep the link:../chats/tek4051/tek4051-handoff.md[handoff] and link:../chats/tek4051/session-history/[daily chat history] current. Record actual validation evidence and remaining limitations without copying another project's product or design decisions.

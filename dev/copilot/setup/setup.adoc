@@ -1,0 +1,110 @@
+= Reusable Project Setup
+:toc:
+:toclevels: 3
+
+== Purpose
+
+This guide describes reusable repository organization and Copilot workflows for a software project. It does not prescribe a product, domain, programming language, framework, architecture, build system, or test runner. Derive those details from the project's request and existing codebase.
+
+For the planned Rust/egui port, read link:setup-rust.adoc[the Rust setup companion] after this guide.
+
+When adapting another project's setup:
+
+. Read the general setup guide and any relevant language/framework companion guide.
+. Recreate only the reusable documentation, workspace instructions, reviewer agents, skills, and validation workflow that fit the target project.
+. Do not copy another project's product requirements, design decisions, or domain-specific files.
+. Ask about significant missing product decisions instead of inventing them.
+. In a fork, treat inherited upstream files as read-only unless the user specifically authorizes changes to them.
+
+== Reusable repository layout
+
+[source,text]
+----
+.github/
+  copilot-instructions.md
+  agents/
+    code-quality-reviewer.agent.md
+    test-quality-reviewer.agent.md
+  skills/
+    <skill-name>/
+      SKILL.md
+copilot/
+  chats/
+    <project-slug>/
+      <project-slug>-handoff.md
+      session-history/
+        session-history-YYYYMMDD.md
+docs/
+  setup/
+    setup.adoc
+    setup-<language>.adoc
+  requirements.<format>
+  design-decisions.<format>
+  reviews/
+    <target>/<date>/
+<language-specific source and configuration>
+<language-specific lockfile, when applicable>
+<project README>
+----
+
+Adapt this layout to the project's conventions; create only the parts that are useful. Keep project context and review artifacts in predictable locations, and replace every placeholder with a name and path appropriate to the target.
+
+== Project documents
+
+=== README
+
+Create or update a README in the repository's chosen format. State the project name and only a user-provided or confirmed description. Document the actual commands used to run, build, format, test, and lint the project; omit commands that do not apply.
+
+=== Requirements
+
+When requirements documentation is useful, derive it from the project's request. Record scope, assumptions, priorities, and testable acceptance criteria. Do not copy another project's requirements or product assumptions. Update the document when scope, assumptions, priorities, or demonstrated behavior change.
+
+=== Design documentation
+
+Record significant design decisions in the format and location selected by the target project. Include the decision, its status and rationale, relevant evidence, and conditions for revisiting it. Keep links current when design documents or decisions change.
+
+=== Handoff and chat history
+
+If persistent chat context is part of the project's workflow, keep a handoff with current status, decisions, blockers, and the next useful action. Append concise, factual summaries to a date-based history. Do not record secrets or unrelated personal information.
+
+== Workspace instructions and reviewers
+
+Use the workspace instructions file for concise project-wide guidance that applies to most work. Include actual paths and commands; do not retain another project's product requirements or implementation constraints.
+
+Create focused reviewer agents for the languages and targets the project uses. A code-quality reviewer should examine maintainability, modularity, cohesion, state/data flow, readability, error handling, and unnecessary complexity. A test-quality reviewer should examine test purpose, assertion value, boundaries, error paths, regressions, brittleness, and important behavior that is not covered.
+
+Keep review scope to the requested change and behaviorally relevant consumers. Give agents only the tool access their role needs. Reviewers should not edit implementation or tests; findings should include concrete evidence, impact, and an actionable suggestion. Follow the target project's chosen review-output and validation workflow rather than assuming a particular report format.
+
+When creating, reviewing, or changing agent and skill configurations, check them together with workspace instructions and related configs. Ensure purpose, scope or triggers, workflow, constraints, applicable tool access, and expected outputs are clear and mutually consistent; resolve conflicts when intent is clear, and surface ambiguous precedence rather than layering on another rule. If user requirements conflict with each other or applicable project guidance, identify the conflict. Ask which requirement governs when precedence is unclear; when the user's request resolves it, state that resolution and proceed.
+
+== Cross-language engineering practices
+
+* Prefer idioms and established practices of the selected language. Keep components cohesive, boundaries understandable, and abstractions proportional to demonstrated needs.
+* Make implementation changes in small increments that can be built and verified using the project's actual toolchain.
+* Write comments to explain intent, important constraints, or why a logical group exists. Avoid comments that merely repeat what the code already says.
+* Keep tests focused on meaningful behavior, with assertions that detect realistic regressions. Use the project's conventions to explain test purpose and non-obvious setup.
+* Assess coverage by the behavior protected, not only by a percentage. Add tests for important behavior and meaningful boundary or error cases as features are implemented.
+* Update requirements when product behavior or accepted assumptions change; update design documentation when an engineering decision changes.
+
+Apply the target language's conventions and the project's requirements rather than assuming every language uses the same comment syntax, test structure, or quality tools.
+
+== Validation workflow
+
+Run the smallest relevant checks for each increment using the project's documented tools and commands. Before considering an increment complete:
+
+. Run available formatting, build/type-check, and focused tests.
+. Run relevant linting or static analysis.
+. Use the required reviewer agent or perform an equivalent focused review; provide validation evidence and address findings or record a rationale for deferral.
+. Check documentation links, file paths, and whitespace using the repository's available tools.
+
+Inspect the project's manifests and environment before choosing commands or installing tools. Record unavailable checks and their impact instead of implying they passed.
+
+== New-project recreation checklist
+
+. Read this guide and the matching language/framework companion guide, when available.
+. Obtain product details and constraints from the user's request; do not copy another project's product decisions.
+. Reuse only the documentation, workspace instructions, reviewer agents, skills, and validation workflows that fit the target.
+. Set up a README and, where useful, requirements, design documentation, handoff, and chat-history files.
+. Start with one minimal, verifiable increment and a focused test appropriate to the stack.
+. Run available formatting, build, test, and lint checks.
+. If multiple operating systems are promised, validate each supported platform in CI or record the platform-specific limitations.
