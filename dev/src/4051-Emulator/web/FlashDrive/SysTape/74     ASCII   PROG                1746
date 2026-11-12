@@ -1,0 +1,23 @@
+200 PAGE 206 N6=1207 N7=2210 PRINT "               G O S U B / R E T U R N"220 PRINT "
+
+
+   The GOSUB statement allows the transfer of program"230 PRINT "execution to a specified line and returns the execution"240 PRINT "of the program to the line following the GOSUB statement"250 PRINT "when a RETURN statement is encountered."260 PRINT "
+
+       GOSUB line number"270 PRINT "       RETURN"280 PRINT "
+
+
+
+                GOSUB  OF /RETURN"290 PRINT "
+
+     The GOSUB OF statement transfers the program "300 PRINT "execution to one of a list of specified lines (as in the"310 PRINT "GOSUB statement, the execution is returned to the line"320 PRINT "following the GOSUB OF statement).  A number indicates"330 PRINT "which of the lines in the GOSUB OF statement should be"340 PRINT "executed. If no valid number is found, the GOSUB OF "345 PRINT "statement ";350 PRINT "is ignored and execution is transferred to the next line."360 PRINT "
+
+        GOSUB number OF line number, line number, line";370 PRINT " number"380 PRINT "        RETURN"390 PRINT "
+
+
+                             Press RETURN to go on";395 N9=I1-1400 GOSUB 150405 GO TO K0 OF 410,410,410,175,156,163,156,181,179410 PAGE 415 N6=2420 PRINT "EXAMPLE PROGRAM:"430 PRINT "
+100 INPUT A"440 PRINT "110 GOSUB A OF 150,170"450 PRINT "120 GOSUB 190"460 PRINT "130 REMARK CONTINUE PROGRAM"470 PRINT "140 END"480 PRINT "150 PRINT ""ONE"""490 PRINT "160 RETURN"500 PRINT "170 PRINT ""TWO"""510 PRINT "180 RETURN"520 PRINT "190 PRINT ""MORE THAN TWO"""530 PRINT "200 RETURN"540 PRINT "
+
+
+
+
+                           Press RETURN to go on";545 N9=I1-1550 GOSUB 150555 GO TO K0 OF 560,560,560,175,156,163,156,181,179560 GO TO 1074000 GO TO 410

@@ -1,0 +1,10 @@
+200 N6=1207 N7=1208 PAGE 210 PRINT "                         FONTS"220 PRINT "
+     The 4052 and 4054 have an expanded set of character"230 PRINT "fonts. There are ten different fonts available, each with "240 PRINT "95 characters. Eighty-six of these characters are ";250 PRINT "identicalfor all fonts and nine vary from font to font. "260 PRINT "The command "270 PRINT "
+     FONT n"280 PRINT "where n is 0-9 selects the font to be used. Font 0, the  "290 PRINT "default, is the standard ASCII font."300 FOR I=1 TO F2*20310 NEXT I315 PAGE 320 PRINT "
+     The nine varying characters in each of the fonts "330 PRINT "are as follows:"340 GOSUB 1000350 PRINT "
+FONT"360 PRINT "----"370 DIM A$(1)380 DIM A(9)390 RESTORE 400 DATA 35,48,64,91,92,93,123,124,125410 READ A420 FOR I=0 TO 9430 GOSUB 1000435 PRINT @32,18:I440 PRINT "
+",I;" ";450 FOR J=1 TO 9460 A$=CHR(A(J))470 PRINT "  ";A$;480 NEXT J490 PRINT 500 NEXT I505 PRINT @32,18:0510 GOSUB 1000520 PRINT "
+
+
+
+                         Press RETURN to go on";540 GOSUB 150550 GO TO K0 OF 107,107,107,175,156,163,156,181,179560 GO TO 1071000 FOR N=1 TO F2*31010 NEXT N1020 RETURN 

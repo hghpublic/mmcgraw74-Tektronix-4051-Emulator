@@ -1,0 +1,1 @@
+100 REM  my ROOT pgm 9 file will contain:110 CALL "!PAUSE",10120 PRINT @5,9:"PICTURES"130 FIND @5:1140 OLD @5:

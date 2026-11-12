@@ -1,0 +1,1 @@
+; file 5 -- a real EXEC test program;		bell=4018		dspchr=4063		space=20		; ascii code				jsr	  doit		rtsdoit:	lda a	timestop:	psh a		swi 	bell		pul a		dec a		beq 	next		jmp 	top		next:	lda a	space,iloop:	psh a		swi 	dspchr		pul a		inc a		bgt 	loop				rts		times:	.byte 10z
