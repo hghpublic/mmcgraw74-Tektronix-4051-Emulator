@@ -1,0 +1,3 @@
+[workspace]
+members = ["dev/src/4051-Emulator/rs/4051-Emulator-rs"]
+resolver = "3"

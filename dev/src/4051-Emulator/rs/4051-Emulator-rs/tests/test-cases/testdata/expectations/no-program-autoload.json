@@ -1,0 +1,16 @@
+{
+  "auto_load_commands": [
+    "FIND @5:1",
+    "OLD @5:",
+    "RUN"
+  ],
+  "visible_command_echo": [
+    "find@5:1",
+    "old@5:",
+    "run"
+  ],
+  "visible_error": "NO PROGRAM FOUND - MESSAGE NUMBER 59",
+  "tape_file_count": 0,
+  "figure_drawn": false,
+  "note": "The reference may clear this transient display later while its execution loop continues."
+}
