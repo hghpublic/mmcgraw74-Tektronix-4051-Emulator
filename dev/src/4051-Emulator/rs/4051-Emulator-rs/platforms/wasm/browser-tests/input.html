@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Browser input adapter test fixture</title>
+  </head>
+  <body>
+    <main id="surface">
+      <canvas id="display"></canvas>
+      <textarea id="keyboard-input" aria-label="Emulator keyboard input"></textarea>
+      <input id="other-input" aria-label="Unrelated text field">
+      <button id="panel-key" type="button">Panel key</button>
+      <button id="panel-key-two" type="button">Second panel key</button>
+      <button id="panel-key-shift" type="button">Shifted panel key</button>
+      <button id="panel-key-normal" type="button">Normal panel key</button>
+    </main>
+    <script type="module">
+      import { attachBrowserKeyboard, bindPanelKeyButton } from "../browser/input.js";
+
+      const calls = [];
+      const emulator = Object.fromEntries([
+        "set_modifiers",
+        "key_down",
+        "key_up",
+        "release_input",
+        "panel_press",
+        "panel_release",
+      ].map((method) => [method, (...args) => calls.push([method, ...args])]));
+
+      function mapBrowserKey(key, text, hostShift) {
+        window.browserMappingCalls.push([key, text ?? null, hostShift]);
+        if (key === "Backspace") {
+          return { code: 0x08, invert_shift: false, text_input: false };
+        }
+        if (/^F(?:[1-9]|1[0-7])$/.test(key)) {
+          return {
+            code: 0x5f + Number(key.slice(1)),
+            invert_shift: false,
+            text_input: false,
+          };
+        }
+        const character = text ?? key;
+        if (character.length !== 1 || character < " " || character > "~") {
+          return null;
+        }
+        if (character === "@") {
+          return { code: 0x40, invert_shift: true, text_input: true };
+        }
+        const code = character >= "a" && character <= "z"
+          ? character.toUpperCase().charCodeAt(0)
+          : character.charCodeAt(0);
+        return { code, invert_shift: false, text_input: true };
+      }
+
+      const onError = (error) => {
+        window.adapterErrors.push(String(error));
+      };
+      window.adapterErrors = [];
+      window.adapterCalls = calls;
+      window.browserMappingCalls = [];
+      window.keyboardBinding = attachBrowserKeyboard({
+        surface: document.querySelector("#surface"),
+        keyboardInput: document.querySelector("#keyboard-input"),
+        emulator,
+        mapBrowserKey,
+        onError,
+      });
+      window.panelBinding = bindPanelKeyButton({
+        button: document.querySelector("#panel-key"),
+        tekCode: 0x61,
+        emulator,
+        onError,
+      });
+      window.secondPanelBinding = bindPanelKeyButton({
+        button: document.querySelector("#panel-key-two"),
+        tekCode: 0x62,
+        emulator,
+        onError,
+      });
+      window.shiftPanelBinding = bindPanelKeyButton({
+        button: document.querySelector("#panel-key-shift"),
+        tekCode: 0x60,
+        emulator,
+        onError,
+        shiftOverride: true,
+      });
+      window.normalPanelBinding = bindPanelKeyButton({
+        button: document.querySelector("#panel-key-normal"),
+        tekCode: 0x60,
+        emulator,
+        onError,
+        shiftOverride: false,
+      });
+      document.querySelector("#panel-key").addEventListener("pointerdown", (event) => {
+        window.panelPointerId = event.pointerId;
+      });
+      window.inputHarnessReady = true;
+    </script>
+  </body>
+</html>
