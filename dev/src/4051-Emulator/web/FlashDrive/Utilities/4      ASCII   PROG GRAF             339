@@ -1,0 +1,51 @@
+90 REM BASIC GRAF pgm by Kemeny & Kurtz
+92 REM posted by Binito Navarro Martinex - Aug 18,2023
+93 REM in facebook forum BASIC Programming Language
+95 REM ported to Tek 4050 BASIC by Monty McGraw
+100 DEF FNF(X)=SIN(X)
+110 DEF FNR(X)=INT(X+.49)
+120 DEF FNX(X)=INT(100*X+.5)/100
+121 REM create string to use for variable # of spaces in a string
+125 S$="                                                              "
+130 READ A,B,S
+140 READ C,D,N
+150 IF N<=50 THEN 180
+160 PRINT "ONLY 50 SUBDIVISIONS"
+170 END
+175 
+180 H=(D-C)/N
+190 PRINT "Y-AXIS FROM ";C;" TO ";D;" IN INCREMENTS OF ";H
+200 REM PRINT
+210 PRINT "       '";
+220 FOR I=1 TO N-1
+225 IF I<>25 THEN 230
+226    PRINT "'";
+227    GO TO  240
+230    PRINT "-";
+240 NEXT I
+250 PRINT "'";
+260 FOR X=A TO B STEP S
+265 PRINT
+270    Y=FNF(X)
+280    Y1=8+FNR((Y-C)/H)
+281 REM create a string of spaces length=Y1
+282 T$=S$
+283 T$=SEG(T$,1,Y1)
+284 IF FNX(X)-INT(FNX(X)) >0 THEN 290
+285    T$=T$&"  "
+290    PRINT FNX(X);T$;"*";
+300 NEXT X
+305 
+310 DATA 0,6.4,.2
+320 DATA -1,1,50
+330 HOME
+390 REM Now drawn with Tek 4050 BASIC vectors
+400 VIEWPORT 22,111.5,3.5,93.5
+410 WINDOW -1,1,0,6.4
+420 AXIS -1,1,0,6.4
+430 MOVE 0,6.4
+440 FOR Y=B to A STEP -S
+450 X=SIN(Y-6.4)
+460 DRAW X,Y
+470 NEXT Y
+480 END
