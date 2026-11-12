@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "dev/src/4051-Emulator/rs/4051-Emulator-rs",
+    "dev/src/4051-Emulator/rs/FlashDriveTests-rs",
+]
+resolver = "3"
