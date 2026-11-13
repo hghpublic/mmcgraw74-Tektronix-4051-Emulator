@@ -1,0 +1,26 @@
+{
+  "name": "tek4051-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "dev/src/4051-Emulator/web/playwright/Benchmark",
+    "dev/src/4051-Emulator/web/playwright/FlashDrive/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces",
+    "test:simpledemo": "npm run test --workspace=tek4051-simpledemo-browser-tests",
+    "test:benchmark": "npm run test --workspace=tek4051-benchmark-browser-tests --",
+    "test:benchmark:ui": "npm run test --workspace=tek4051-benchmark-browser-tests -- --ui",
+    "test:battlestar": "npm run test --workspace=tek4051-battlestar-browser-tests --",
+    "test:battlestar:ui": "npm run test --workspace=tek4051-battlestar-browser-tests -- --ui",
+    "test:starwars": "npm run test --workspace=tek4051-starwars-browser-tests --",
+    "test:starwars:ui": "npm run test --workspace=tek4051-starwars-browser-tests -- --ui",
+    "test:ui": "npm run test --workspace=tek4051-simpledemo-browser-tests -- --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0"
+  }
+}
