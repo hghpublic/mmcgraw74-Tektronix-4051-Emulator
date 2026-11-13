@@ -41,24 +41,24 @@
   \
   Rust implementation root: `dev/src/4051-Emulator/rs/4051-Emulator-rs`
   \
-  Cargo manifest: repository-root `Cargo.toml`
+  Cargo workspace: repository-root `Cargo.toml`
   \
-  Status: native target selected; expanded CPU instruction subset implemented; parity baseline incomplete
+  Status: partial native implementation; parity baseline and grade gates remain open
   \
-  Date: 12 November 2026
+  Updated: 14 November 2026
 ]
 
 #outline(title: [Contents], depth: 2)
 
 = Purpose and scope
 
-This design records the current web emulator's boundaries and proposes a Rust/egui architecture that can preserve its observable behavior. The web implementation remains the compatibility reference. This work does not change it, remove it, or claim runtime parity has already been measured.
+This design records the web emulator's boundaries, the current Rust/egui implementation, and the remaining target architecture. The web implementation remains the compatibility reference. Isolated comparisons exist, but they do not establish complete parity.
 
-The requested target is a native egui application. The user selected native desktop; eframe is the intended application integration but has not yet been added. Rust implementation files belong under `dev/src/4051-Emulator/rs/4051-Emulator-rs`, with the package manifest at repository-root `Cargo.toml`.
+The selected target is a native egui application using eframe. The repository-root `Cargo.toml` is a virtual workspace; its member package manifest, library, and native binary live under `dev/src/4051-Emulator/rs/4051-Emulator-rs`. The package currently depends on eframe 0.32.3.
 
-The user selected storage behavior matching the reference's apparent in-memory tape store. This resolves the port's initial policy, while the README's browser-local-storage claim remains inconsistent with the inspected `Storage.js`; revisit only if runtime evidence contradicts the selected behavior.
+The user selected storage behavior matching the reference's in-memory tape store. The draft baseline observed saved tape files disappearing on browser reload, despite the README's browser-local-storage claim. Revisit the selected policy only if contrary runtime evidence emerges.
 
-The Rust package now contains a UI-independent CPU and machine core with selected immediate/direct/indexed/extended instructions, word operations, unary operations, branches, subroutines, and interrupt entry/return. It maps 32 KB RAM, the base ROM, and PIA registers, and executes the first twelve base-ROM reset instructions. It is not yet a full MC6800 or board implementation, and it does not boot the complete system or provide the egui application.
+The UI-independent Rust core implements a subset of MC6800 instructions, memory mapping, PIA behavior, interrupts, keyboard signals, display modeling, and host timing. A native eframe shell presents the display and a subset of controls. A bounded startup trace reaches the ROM keyboard routine, and one keyboard-entered BASIC program runs in a machine/runtime test; full boot, complete CPU/board behavior, native input, and feature parity remain unverified.
 
 The compatibility target is the behavior actually established by the reference implementation and its supplied examples, including its documented limitations. It is not a claim to emulate every Tektronix 4051 peripheral or every feature of later 4050-series models.
 
@@ -70,7 +70,7 @@ The compatibility target is the behavior actually established by the reference i
 
 The page's JavaScript also connects start, pause, reset, auto-scaling, CPU speed, display granularity, file loading, audio, and device-registration actions to the emulator (`Tektronix4051.html:364-404, 465-546, 605-621`). The stylesheet contains the fixed front-panel layout and screen presentation (`styleSheet.css:1-160`).
 
-== Logical responsibilities in the current implementation
+== Logical responsibilities in the web implementation
 
 #table(
   columns: (1.1fr, 2.2fr, 1.7fr),
@@ -89,9 +89,9 @@ The web page is the only composition root. The JavaScript modules use browser ob
 
 == Runtime and build observations
 
-The source directory has a `package.json` with ESLint development dependencies and a placeholder `npm test` command that exits with “Error: no test specified” (`package.json:1-16`). The HTML loads a classic-script `RTC.js`; a separate `RTC.mjs` is present but is not in that script list. Likewise, `.old` and `.new` files in the folder are not loaded by the application entry point. Establish the canonical source from the HTML dependency list; do not automatically port duplicate or unused files.
+The inherited web source directory has a `package.json` with ESLint development dependencies and a placeholder `npm test` command. The repository-root `npm test` instead runs the newer Playwright workspaces for reference workflows; their results and skips are reference evidence, not proof of Rust parity. The HTML loads a classic-script `RTC.js`; a separate `RTC.mjs` is present but is not in that script list. Likewise, `.old` and `.new` files in the folder are not loaded by the application entry point. Establish the canonical source from the HTML dependency list; do not automatically port duplicate or unused files.
 
-`Storage.js` uses a `fileStore` array initialized with each `Storage` object (`Storage.js:38-40, 1076-1210`). The source README says browser-local storage was added (`README.md:22`), but the reviewed storage implementation contains no `localStorage`, `sessionStorage`, or IndexedDB calls. Whether data survives a browser reload therefore needs a baseline runtime check before persistence is classified as a parity requirement.
+`Storage.js` uses a `fileStore` array initialized with each `Storage` object (`Storage.js:38-40, 1076-1210`). The source README says browser-local storage was added (`README.md:22`), but the reviewed storage implementation contains no `localStorage`, `sessionStorage`, or IndexedDB calls. The draft baseline observed that saved files disappear on page reload; native storage has not yet been implemented.
 
 = Behavior and compatibility surface
 
@@ -101,7 +101,7 @@ The root project README describes a Motorola 6800, 32 KB RAM, 32 KB BASIC ROM, a
 
 == Screen and keyboard
 
-The logical display is not a normal text terminal. It plots vectors and character dots from PIA state, retains pixels above a brightness threshold, and erases pixels during refresh (`TekDisplay.js:63-145, 159-241, 307-329`). Preserve coordinate direction, offsets, pixel intensity, and coarse/mixed/fine dot sizing before optimizing the renderer. The current HTML canvas is 1046 by 830, while the user-facing project description specifies the 1024 by 780 graphics space; keep the logical plotting area distinct from the surrounding front-panel UI (`Tektronix4051.html:58; README.md:109-113`).
+The logical display is not a normal text terminal. It plots vectors and character dots from PIA state, retains pixels above a brightness threshold, and erases pixels during refresh (`TekDisplay.js:63-145, 159-241, 307-329`). Preserve coordinate direction, offsets, pixel intensity, and coarse/mixed/fine dot sizing before optimizing the renderer. The current HTML canvas is 1046 by 830, while the user-facing project description specifies the 1024 by 780 graphics space; keep the logical plotting area distinct from the surrounding front-panel UI (`Tektronix4051.html:58; README.md:109-113`). The Rust `DisplayModel` keeps the reference-sized canvas as row-major green-channel intensity values, with PIA reads/writes driving vector, cursor, and character-dot output. `HostRuntime` applies the 100 ms phosphor update and completes the 500 ms erase transition; the native shell uploads framebuffer revisions as an egui texture.
 
 The host-key mapping includes ordinary characters, modifier state, Tektronix function keys, HOME/PAGE, RUB OUT, BREAK, and other special keys. Front-panel keys produce press and release events, and the Auto Load control types a command sequence into the emulated keyboard (`TekKeyboard.js:11-93, 279-365; TEKTRONIX4051.js:1213-1275`). Treat both physical-key mapping and clickable front-panel input as required interaction surfaces.
 
@@ -115,31 +115,52 @@ The tape UI exposes file number, type, usage, description, size, selected drive,
 
 The project README explicitly says R12 MUSIC and SOUND commands do not play on the emulator (`README.md:86`). Preserve that as the current compatibility boundary; adding sound synthesis would be a separate feature, not a parity requirement. The UI's beep/click audio toggle is separate from BASIC's R12 SOUND/MUSIC behavior (`TEKTRONIX4051.js:153-157, 914, 1145-1166`).
 
-= Proposed Rust/egui architecture
+= Rust/egui architecture
 
-== Separation and ownership
+== Current implementation
 
-- *Emulator core:* pure Rust state and behavior for MC6800 registers/instructions, memory, ROM mapping, PIA registers, interrupt signals, keyboard matrix state, and GPIB electrical/protocol state. No egui types, filesystem access, dialogs, or global mutable state.
-- *Machine orchestration:* owns CPU and board components, advances bounded work at the selected speed, and exposes input operations plus observable output/events. The hardware memory map and ordering remain explicit.
-- *Display model:* consumes machine display signals into a logical framebuffer or ordered drawing-event buffer. It owns phosphor persistence/decay semantics and exports an immutable view suitable for egui painting or texture upload.
-- *Peripheral layer:* a typed GPIB device interface with Loader, RTC, tape storage, and Printer implementations. Device addressing, byte streams, EOI behavior, and error responses are core contracts.
-- *Storage model and codecs:* numbered file records, header fields, binary content, Flash Drive filename parsing, and archive encoding/decoding live outside UI code. UI file pickers and filesystem paths are adapters.
-- *egui application:* owns panels, controls, dialogs, key event translation, user notifications, screen scaling, audio preferences, and the app lifecycle. It sends explicit actions to the machine and presents resulting state; it does not directly edit CPU or PIA registers.
+#table(
+  columns: (1.2fr, 3.8fr),
+  stroke: 0.5pt,
+  [*Component*], [*Implemented responsibility*],
+  [#raw("cpu.rs")], [MC6800 registers, instruction subset, memory-bus access, and interrupt entry/return.],
+  [#raw("machine.rs")], [Owns CPU and bus; samples interrupt sources and exposes bounded stepping, keyboard, PIA, and display operations.],
+  [#raw("machine_bus.rs"), #raw("pia.rs"), #raw("rom.rs")], [Map RAM, base and selected option ROM payloads, PIA registers, keyboard and display signals, and board interrupt flags.],
+  [#raw("display.rs")], [Models the logical framebuffer, PIA-driven plotting, granularity, phosphor refresh, and erase transitions.],
+  [#raw("host_runtime.rs")], [Advances caller-supplied elapsed time through CPU and keyboard callbacks, display refreshes, and erase completion.],
+  [#raw("main.rs"), #raw("keyboard_input.rs"), #raw("front_panel.rs")], [Run the eframe shell, present framebuffer revisions and settings, translate host events, and schedule user-key and editor-key pointer input.],
+)
+
+The machine maps base and overflow ROMs, the backpack payloads, and all eight slots of each ROM expander. Selector 2/3 reads within the switchable window deliberately return zero for the reference's undefined bytes; unsupported selector-1 and selector-4 tails return errors. Board interrupt routing uses latched PIA flags as in the web reference. These choices do not establish full undefined-value or physical hardware parity.
+
+The host runs CPU and keyboard callbacks at 10 ms, phosphor refresh at 100 ms, and erase completion after 500 ms. Each CPU callback has an instruction budget derived from the selected speed. Machine errors stop the runtime and are shown in the UI; invalid speed settings are reported without replacing the prior setting. The app does not currently expose recovery controls for a stopped runtime.
+
+Native GPIB routing and devices, tape storage/import, Auto Load, printer, audio, screen copy, and remaining lifecycle/front-panel controls are future work. The machine supports Caps Lock state, but the native adapter does not wire a Caps Lock control. The current window has been launched and an earlier shell was visually observed; native input and presentation parity remain unverified.
+
+== Target separation and ownership
+
+- *Emulator core:* Rust state and behavior for MC6800 registers/instructions, memory, ROM mapping, PIA registers, interrupt signals, keyboard state, and eventually GPIB protocol state. No egui types, filesystem access, dialogs, or global mutable state.
+- *Machine orchestration:* `Machine` owns CPU and board components and executes bounded instruction batches; `HostRuntime` schedules batches at the selected speed. The hardware memory map and ordering remain explicit.
+- *Display model:* the machine bus translates display PIA accesses into vector, cursor, and character-dot operations on `DisplayModel`. It owns phosphor persistence/decay semantics and exports an immutable green-channel framebuffer suitable for egui painting or texture upload.
+- *Peripheral layer, planned:* a typed GPIB device interface with Loader, RTC, tape storage, and Printer implementations. Device addressing, byte streams, EOI behavior, and error responses are core contracts.
+- *Storage model and codecs, planned:* numbered file records, header fields, binary content, Flash Drive filename parsing, and archive encoding/decoding live outside UI code. UI file pickers and filesystem paths are adapters.
+- *egui application:* owns the implemented presentation, settings, and input adapters; dialogs, audio preferences, and lifecycle controls remain planned. It sends operations to the machine and presents resulting state rather than directly editing CPU or PIA registers.
 - *Immutable compatibility assets:* port the existing base/option ROM bytes as data without editing the inherited web assets. Verify lengths and stable digests in tests before changing how they are packaged.
 
 == Frame and event flow
 
-1. Translate egui key events and front-panel button presses/releases into a small typed Tektronix input enum.
-2. Advance the machine by a bounded amount of emulated time, using an accumulator so host frame rate does not define CPU speed.
-3. Let machine I/O produce display updates, GPIB transactions, status changes, and peripheral effects through explicit interfaces.
-4. Update the logical display model; paint the screen and front panel through egui.
-5. Dispatch file/audio/print requests through application adapters and report failures visibly.
+1. Advance elapsed time using the previous frame's modifiers and speed. `FrontPanel` divides the interval at queued pointer transitions and calls `HostRuntime`, which executes due machine and display callbacks.
+2. Upload the read-only framebuffer when its revision changes, then lay out the display, controls, and panel. A speed selection affects subsequent elapsed time, not the interval already advanced.
+3. Process host-key and pointer events in source order. The keyboard adapter translates supported keys and modifiers into machine operations; the panel queues rapid pointer taps and enforces minimum 100 ms press and release intervals.
+4. On focus loss, clear held input and pending panel presses. Request the next repaint while the runtime is healthy; display an execution error if it stops.
+
+File, audio, and printer requests are planned application adapters, not part of this current frame flow. Real-time responsiveness under sustained or delayed frames still needs native validation.
 
 The core should expose snapshot-able state or narrow test interfaces for instruction traces, memory/PIA state, GPIB transcripts, storage records, and display output. The UI should be testable at the action/state level without requiring the CPU implementation to depend on egui.
 
 == Scope and non-goals
 
-The port should preserve the 4051-oriented behavior and the supplied data required by that behavior. The root Cargo package uses a UI-independent library under `dev/src/4051-Emulator/rs/4051-Emulator-rs`; add the native eframe application and platform dependencies when the UI phase begins. Do not expand to 4052/4054 hardware, rewrite original ROM contents, remove the web reference, or import old duplicate files without evidence that the running HTML depends on them.
+The port should preserve the 4051-oriented behavior and the supplied data required by that behavior. The root Cargo workspace contains the UI-independent library and a native eframe application under `dev/src/4051-Emulator/rs/4051-Emulator-rs`; the application presents the display framebuffer, forwards host keyboard events, and advances `HostRuntime`. Its CPU-speed button cycles through the reference's x1, x2, x5, x10, x20, x50, and x100 settings; observed real-time performance and physical-keyboard behavior remain unverified. Ten clickable user keys and five line-editor keys send the reference codes; holding host Shift selects the corresponding alternate functions. Unlike the web's immediate pointer transitions, the native adapter extends short presses and intervening releases to at least 100 ms, queuing rapid taps to give the emulated keyboard time to observe each transition. The line-editor buttons have been checked at the keyboard PIA, not yet as native editing workflows. Other front-panel widgets and peripheral panels remain future work. Do not expand to 4052/4054 hardware, rewrite original ROM contents, remove the web reference, or import old duplicate files without evidence that the running HTML depends on them.
 
 = Parity evidence and unresolved decisions
 
@@ -147,9 +168,10 @@ Continue running the web reference and capture a reproducible behavior baseline:
 
 Use focused evidence at each layer: CPU reset/interrupt/instruction traces; memory and PIA reads/writes; keyboard-to-Tek-code mappings; logical screen snapshots; GPIB byte transcripts and EOI endings; file metadata/content round trips; and observable UI actions. Compare at the logical display resolution before comparing scaled desktop screenshots. Include malformed input and user-cancel paths so failures remain visible and do not become silent success.
 
-The baseline should continue to verify:
+The draft baseline captures startup, control settings, GPIB registry changes, tape import, Auto Load, in-memory reload behavior, and a vector program. The newer browser suites exercise additional supplied programs with documented skips and known reference limitations. Reconcile them before freezing; character-size rendering, physical host-key input, printer output, and GPIB byte/EOI transcripts remain unverified.
 
-- Representative program and peripheral behavior, since only page load, start, and reset have been exercised so far.
-- Whether the running web reference contradicts the selected in-memory storage policy. The selected native desktop target uses different file-dialog, persistence, download, and printer adapters from a browser build.
+The `keyboard_entered_basic_program_matches_reference_display` Rust test enters `10 PRINT 1` and `RUN` through the machine/runtime API and compares a stored-pixel mask with the web reference. It does not exercise physical keyboard input, exact pixel intensities, storage loading, or general BASIC compatibility. Native editor workflows and option-ROM programs also remain unverified.
+
+The selected native target still needs decisions and implementations for file dialogs and printer presentation. Confirm the deferred baseline environment-mode choice before freezing. Explicitly document any intentional user-visible deviation, including the native pointer timing and error handling, rather than describing it as reference parity.
 
 The companion `graded-migration-guide.typ` turns these findings into staged completion gates. A grade is a migration stage, not a quality score; passing a grade requires its evidence, not merely compiling the current code.

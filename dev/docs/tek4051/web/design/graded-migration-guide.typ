@@ -45,16 +45,29 @@
   \
   Target: native desktop Rust application using egui
   \
-  Date: 12 November 2026
+  Updated: 14 November 2026
 ]
 
 #outline(title: [Contents], depth: 2)
 
 = How to use the grades
 
-Progress through the grades in order. Each grade is a completion gate with observable exit evidence, not a percentage or an invented quality score. Keep the JavaScript emulator and its supplied ROM/program assets as the behavior oracle. Do not change inherited source files as part of this migration unless separately authorized.
+The grades are ordered completion gates, not percentages or invented quality scores. Work may proceed across grades in small increments, but later implementation does not waive earlier evidence or imply that an earlier gate has passed. Keep the JavaScript emulator and its supplied ROM/program assets as the behavior oracle. Do not change inherited source files as part of this migration unless separately authorized.
 
-The web entry point wires the visible controls to global JavaScript modules; the Rust implementation should first reproduce those contracts, then replace browser-specific interactions with egui/native adapters (`Tektronix4051.html:8-22, 37-58, 186-257, 300-318`). Native desktop is selected. The user also selected matching the reference's apparent in-memory tape behavior; the README/runtime discrepancy remains subject to baseline evidence. The design document at `design.typ` describes the target boundaries.
+The web entry point wires the visible controls to global JavaScript modules; the Rust implementation should reproduce those contracts and replace browser-specific interactions with egui/native adapters (`Tektronix4051.html:8-22, 37-58, 186-257, 300-318`). Native desktop and eframe are selected. Tape storage is intended to match the reference's in-memory behavior: the baseline observed saved files disappearing on page reload, despite the README's browser-local-storage claim. The design document at `design.typ` describes the current implementation and target boundaries.
+
+== Current assessment
+
+As of 14 November 2026, no grade exit gate has been formally verified. The baseline is draft and unfrozen; core, display, input, and ROM mapping work have advanced in parallel. One simple BASIC program runs through the machine/runtime keyboard API and matches a web-derived stored-pixel mask. That evidence is not a native input test, a general BASIC compatibility claim, or full feature parity.
+
+- *Grade 0 — open:* the pinned reference and multiple workflows are captured, but character-size rendering, physical host-key input, printer output, and GPIB byte/EOI transcripts remain unverified. Confirm the deferred baseline environment mode before freezing.
+- *Grade 1 — open:* selected CPU, memory, PIA, interrupt, keyboard, and ROM paths are tested; a bounded ROM startup and a keyboard-entered BASIC program run. Complete instruction/board coverage and selected differential traces remain to be established.
+- *Grade 2 — open:* the eframe shell renders the logical display and exposes granularity, speed, host keyboard, ten user keys, and five line-editor keys. Native physical input, editor workflows, lifecycle controls, and screen copy have not been verified or completed.
+- *Grade 3 — open:* native GPIB devices, tape storage/import, and Auto Load are not implemented. Reference-side storage and program flows are not evidence of native loading.
+- *Grade 4 — open:* option-ROM bytes and bank mappings are present, but representative option-ROM program execution, printer, audio, and speed calibration remain open.
+- *Grade 5 — open:* full checklist replay and parity sign-off depend on the earlier gates and their recorded evidence.
+
+Evidence and limitations are tracked in `dev/docs/tek4051/phase-0/baseline-summary.md`, `dev/src/4051-Emulator/rs/4051-Emulator-rs/tests/test-cases/test-cases.md`, the Rust package's `tests/` and separate private test files, and `dev/copilot/chats/tek4051/tek4051-handoff.md`. Historical observations in the draft baseline are snapshots, not current test-inventory claims.
 
 = Grade 0 — Baseline and scope ready
 
@@ -62,12 +75,13 @@ The web entry point wires the visible controls to global JavaScript modules; the
 
 *Work:*
 
-- Select and record the precise web source revision and launch procedure. Verify the page starts, can reset, accepts keyboard input, and renders at least one known program.
+- The draft baseline pins revision `b33e20fb3ef41a1db114b602a29a9ba8ce3fdb48`, records the launch procedure and captures startup, reset, settings, tape import, Auto Load, and a vector program. Complete the missing physical-key, character-size, printer, and GPIB transcript observations.
 - Inventory the exact script dependency list in `Tektronix4051.html`. Exclude unused `.old`, `.new`, alternate module, and test files unless runtime evidence shows they are required.
 - Build a behavior checklist from the documented 4051 hardware, option ROMs, GPIB tape features, scaling, pixel modes, CPU speed, and keyboard instructions (`README.md:37-58, 109-141`).
-- The user selected matching the reference's apparent in-memory storage behavior. The source README mentions browser-local storage (`web/4051-Emulator/README.md:22`), while `Storage.js` initializes an in-memory `fileStore` (`Storage.js:38-40, 1076-1210`); flag contrary runtime evidence without changing the selected policy silently.
+- Preserve the selected in-memory storage policy. The source README mentions browser-local storage (`web/4051-Emulator/README.md:22`), while `Storage.js` initializes an in-memory `fileStore` (`Storage.js:38-40, 1076-1210`) and the draft baseline observed files disappearing on page reload. Flag contrary runtime evidence without silently changing the policy.
 - The target is native desktop. Keep file dialogs, downloads, persistence, and printer presentation in native adapters.
 - Preserve the source tree and asset files. Record representative program inputs and expected CPU, display, GPIB, and storage outcomes.
+- Reconcile the draft baseline with the newer root Playwright suites and record their coverage, skips, known reference limitations, and provenance; do not treat skipped or partial scenarios as passing parity evidence. Confirm the deferred environment-mode choice, resolve remaining baseline gaps, and freeze the agreed bundle.
 
 *Exit gate:* an executable reference baseline, an agreed feature checklist, target-platform decision, and explicit answers for persistence and known unsupported behavior. If the web reference cannot run reliably, mark affected behaviors “baseline blocked” rather than guessing expected output.
 
@@ -78,13 +92,14 @@ The web entry point wires the visible controls to global JavaScript modules; the
 *Work:*
 
 - Implement MC6800 state, instruction execution, flags, addressing, reset/interrupt vectors, and memory access; use fixed-width integers and checked boundaries.
-- The repository-root `Cargo.toml` defines the package and points its core library at `dev/src/4051-Emulator/rs/4051-Emulator-rs/lib.rs`. The current core executes the first twelve base-ROM reset instructions; continue CPU/addressing coverage until the complete startup path is reached.
-- The Rust machine now maps 32 KB RAM, the base ROM, PIA data/direction/control registers, and an instruction-budget API. Finish PIA interrupt and keyboard signaling, display-control behavior, GPIB handshake, and expansion-ROM bank mapping (`TEKTRONIX4051.js:489-803, 1126-1209`).
+- The repository-root `Cargo.toml` is a virtual workspace; its member package and library live under the Rust implementation root. Continue CPU/addressing coverage beyond the implemented subset and compare representative instruction and boot traces to the reference.
+- The machine maps RAM, base and overflow ROMs, backpack and expander payloads, and PIA registers; tests exercise interrupt and keyboard signaling, display-ready/erase behavior, and ROM bank boundaries. GPIB handshake and complete board behavior remain open (`TEKTRONIX4051.js:489-803, 1126-1209`).
+- Preserve the recorded bank deviations: selectors 2/3 normalize uncovered JavaScript values to zero within the bank window, while the uncovered selector-1 and selector-4 tails return explicit errors. Establish any further compatibility consequences with reference evidence.
 - Preserve the base ROM bytes and test byte count and digest against the reviewed source (`Tek4051Rom.js:1-3, 5960-5982`). Do not transcribe or “clean up” ROM contents.
 - Use a deterministic machine-step API that accepts input and returns observable effects; avoid browser globals, wall-clock scheduling, and egui dependencies in this layer.
-- Establish instruction-level unit tests and differential traces against the JavaScript reference for reset, representative opcodes/addressing modes, interrupts, and memory-mapped register access.
+- Extend instruction-level tests and establish differential traces against the JavaScript reference for reset, representative opcodes/addressing modes, interrupts, and memory-mapped register access. Retain the bounded startup and `10 PRINT 1` / `RUN` regression without presenting their coverage as complete boot parity.
 
-*Exit gate:* the Rust machine resets to the reference reset vector, matches selected deterministic CPU/memory traces, and executes the base ROM without a panic or state divergence in the covered cases. Do not start the full UI until the core contract is testable.
+*Exit gate:* the Rust machine resets to the reference reset vector, matches selected deterministic CPU/memory traces, and executes the base ROM without a panic or state divergence in the covered cases. The core contract must remain independently testable as the UI evolves.
 
 = Grade 2 — Interactive display and front panel
 
@@ -92,7 +107,10 @@ The web entry point wires the visible controls to global JavaScript modules; the
 
 *Work:*
 
+- Build on the existing UI-independent display model, `HostRuntime`, and eframe framebuffer presentation. The native window has been launched and an earlier shell screenshot observed, but physical interaction and presentation parity are not established.
+- Smoke-test physical host keyboard input, the user-key and line-editor buttons, Shift functions, and speed selection in the native window. Add executable editor behavior checks through the running ROM; PIA-code tests alone do not prove editing.
 - Reproduce Tektronix key translation, modifiers, key press/release behavior, function keys, HOME/PAGE, RUB OUT, BREAK, and the clickable front-panel keys (`TekKeyboard.js:11-93, 279-365; Tektronix4051.html:72-192`).
+- The current pointer adapter queues short presses and releases with 100 ms minimum intervals, unlike the web's immediate transitions. Retain this documented deviation and test its effects on real interaction; implement remaining controls and Caps Lock.
 - Render the logical vector display and character dots with matching coordinates, colors, dot sizing, cursor behavior, erase timing, persistence, and refresh decay (`TekDisplay.js:63-145, 159-241, 272-329, 342-365`).
 - Keep logical plotting coordinates separate from egui scaling and window layout. Match the reference coarse, mixed, and fine display modes and Auto-Scaling behavior (`Tektronix4051.html:40-50, 465-498, 524-547`).
 - Implement start, pause, reset, status indicators, screen copy, and UI beep/click mute behavior. Schedule bounded CPU work from elapsed time; preserve the reference's nominal interval and speed-factor behavior (`TEKTRONIX4051.js:1201-1209, 1277-1318; mc6800.js:60-66, 326-331`).
@@ -106,6 +124,7 @@ The web entry point wires the visible controls to global JavaScript modules; the
 
 *Work:*
 
+- Start from the captured default device registry and tape Auto Load reference flow; implement the bus and storage path before claiming programs can be loaded from a flash-drive file set.
 - Implement an explicit GPIB bus/device interface with address validation, device registration/removal, talk/listen routing, byte buffers, and EOI behavior (`GPIB.js:54-177, 194-287; TEKTRONIX4051.js:288-488`).
 - Add the program Loader, RTC, and 4924 tape drive at the default addresses. Preserve the RTC's formatted local time and the machine's GPIB transaction ordering (`Tektronix4051.html:304-318; Loader.js:1-29; RTC.js:11-39`).
 - Implement numbered storage records and metadata, selection, save/delete/clear, directory/find/old/read/write/print/binary operations, multiple storage devices, and Auto Load (`Storage.js:38-65, 770-1050; TEKTRONIX4051.js:1250-1275`).
@@ -121,7 +140,7 @@ The web entry point wires the visible controls to global JavaScript modules; the
 
 *Work:*
 
-- Preserve all base and expanded ROM bytes and reproduce the option-ROM slot mapping (`Tek4051Rom.js:1-3, 262-4147; RomExp.js:10-13, 105-1137, 8416-9453, 15688-16724`).
+- Preserve all base and expanded ROM bytes and verify the existing option-ROM slot mapping against the reference (`Tek4051Rom.js:1-3, 262-4147; RomExp.js:10-13, 105-1137, 8416-9453, 15688-16724`). Mapped bytes and headers alone do not establish option-ROM program compatibility.
 - Execute representative programs that exercise each option-ROM family listed in the project README: R01, R05, R06, R07, R08, R12, R14, DDT51, Extended BASIC, and Extended Fonts (`README.md:115-127`).
 - Add the GPIB Printer behavior and verify output from BASIC print operations. Replace browser popup output with a native egui window/panel or another agreed desktop presentation (`Printer.js:1-44; Storage.js:820-870`).
 - Retain UI audio mute and beep/click behavior, but do not claim R12 MUSIC/SOUND support; the current project README marks those commands unsupported (`TEKTRONIX4051.js:153-157, 914, 1145-1166; README.md:86`).
@@ -139,10 +158,17 @@ The web entry point wires the visible controls to global JavaScript modules; the
 - Compare deterministic CPU/memory traces, logical display snapshots, GPIB byte transcripts, storage metadata/content, and visible status/error results against the web baseline. Use screenshot comparison only after matching logical screen coordinates and scaling.
 - Test boundary and error paths: invalid/empty program input, missing tape files, invalid device addresses, malformed archive, canceled import/export, delete-all confirmation, and reset while running.
 - Verify supplied assets were not modified and every imported/exported format remains usable with the documented 4050 Flash Drive files.
-- Run Rust formatting, lint, build, and the focused/full Rust test suites selected by the eventual package. The current JavaScript `npm test` command is only a placeholder; it is not migration evidence (`package.json:6-11`).
+- Run Rust formatting, lint, build, and focused/full Rust tests. The repository-root `npm test` runs the web Playwright workspaces; record its results and skips as reference evidence, not as proof of Rust parity. The separate inherited web-source `package.json` still has a placeholder test command.
 - Keep the web emulator available as a reference until all sign-off evidence is recorded. Removal or cleanup of the legacy project is outside this port request.
 
 *Exit gate:* every agreed feature has recorded evidence, all focused tests and builds pass, known gaps are explicitly listed, and the target has no unresolved behavior choices that affect user-visible parity.
+
+= Near-term sequence
+
+1. Complete the missing Grade 0 observations and reconcile the existing browser suites with the draft baseline; confirm the environment-mode decision and freeze only after the agreed evidence is complete.
+2. Verify native input and presentation with the current shell, including editor behavior and pointer timing. Continue remaining front-panel controls, lifecycle actions, and screen copy with focused tests.
+3. Implement GPIB routing, default devices, tape records and import, then Auto Load. Compare a supplied program's `FIND @5`, `OLD @5`, and `RUN` flow against the frozen reference.
+4. Expand deterministic CPU/board differential evidence and representative option-ROM, printer, audio, and speed checks. Reassess each grade against its exit gate rather than treating this sequence as automatic sign-off.
 
 = Cross-grade rules
 
