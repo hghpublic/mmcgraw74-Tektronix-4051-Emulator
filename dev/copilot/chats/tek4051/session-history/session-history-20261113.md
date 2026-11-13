@@ -208,3 +208,24 @@
 - The Test Quality Reviewer identified that the startup trace marked ignored-bank probes without asserting their resulting header value. The test now asserts `IX == 0` after each selector-2/3 probe before marking it observed; the focused startup test passes. The reviewer confirmed the gap is resolved with no remaining issue in that scope.
 - Rust validation passed: `cargo fmt --all -- --check`, `cargo check --locked`, `cargo build --locked`, `cargo test --locked` (56 passed: 32 CPU + 24 machine), `cargo clippy --locked --all-targets -- -D warnings`, `git diff --check`, and Typst compilation of the migration log. The Rust Code Quality Reviewer found no issues. Timed keyboard refresh and end-to-end keyboard IRQ readiness remain unverified.
 - Next: continue bounded normal-startup tracing beyond the selector-7 slot-0 probe without CPU register overrides or broadening the ignored-bank zero policy; investigate subsequent execution only from observed ROM bytes and explicit host/timing behavior.
+
+## Normal startup keyboard input trace
+
+- Extended the normal-startup regression from the selector-7 slot-0 probe. Without changing CPU registers, it finds the base-ROM keyboard routine at `0xC88A` within a 2,000,000-instruction bound, injects an `A` press and explicit keyboard interrupt tick, and verifies the ROM IRQ handler at `0xEFB8` records key-down at RAM `0x0597` and `A` at `0x059C`. A release and second explicit tick clear key-down while retaining the last key value.
+- This verifies keyboard event processing after startup when the host supplies ticks. It does not implement periodic keyboard-refresh scheduling, timed display-erase completion, or prove complete boot.
+- The Rust Test Quality Reviewer identified an off-by-one issue in the bounded PC search. Changed it to execute at most 2,000,000 steps and check the final PC after the last step; the reviewer confirmed no remaining finding.
+- Final validation passed: `cargo fmt --all -- --check`, `cargo check --locked`, `cargo build --locked`, `cargo test --locked` (56 passed: 32 CPU + 24 machine), `cargo clippy --locked --all-targets -- -D warnings`, `git diff --check`, and compilation of the updated migration log with Typst.
+- Next: implement a host-owned execution/timing layer for keyboard ticks and display-erase completion, then connect it to the native egui shell while keeping timers out of the deterministic CPU/machine core.
+
+## Reference timing verification
+
+- Confirmed the unchanged web source schedules CPU execution and keyboard interrupts every 10 ms, display phosphor updates every 100 ms, and calls display-ready 500 ms after an erase. The JavaScript CPU's instruction budget is derived from its speed factor, so the host adapter must preserve that behavior rather than assume the timer intervals alone define CPU speed.
+- The Rust Test Quality Reviewer found no issues in the bounded startup keyboard regression. Updated the migration-plan status summary to include selector 7 and the verified startup input path, and removed the duplicate stale open-work item from the migration log.
+- No emulator timing code changed. Next: implement the host-owned scheduling adapter and connect it to the egui shell without adding elapsed-time behavior to the deterministic core.
+
+## Host-owned execution and timing
+
+- Added `host_runtime.rs` as a separate elapsed-time adapter. It signals initial display readiness, schedules CPU execution before the keyboard callback every 10 ms, reports 100 ms display-refresh events, applies the 500 ms erase delay, and preserves the reference's speed-factor instruction budget. On CPU errors it returns due display events and stops; recovery requires resetting the machine and creating a new runtime.
+- Added five runtime tests for 10/100/500 ms boundaries, x2 speed, rejected speed-factor preservation, and machine-error/event propagation. The Rust Code Quality Reviewer and Rust Test Quality Reviewer found no remaining issues after review feedback was addressed.
+- Updated the migration log, migration plan, and handoff. Validation passed: `cargo fmt --all -- --check`, `cargo check --locked`, `cargo build --locked`, `cargo test --locked` (61 passed: 32 CPU + 24 machine + 5 runtime), `cargo clippy --locked --all-targets -- -D warnings`, `git diff --check`, and compilation of both updated Typst documents. No changed files are Git-ignored.
+- Next: connect `HostRuntime` to the native egui update loop and display renderer; then continue remaining reference captures and option-ROM/peripheral coverage.

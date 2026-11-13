@@ -12,7 +12,7 @@ Treat inherited upstream files, emulator sources, archives, and program/data ass
 
 * Use Cargo for dependency management, builds, tests, and linting.
 * Consider Rust 2024 edition for a new package after checking the chosen dependencies' compiler requirements. Record the selected edition and minimum supported Rust version in the manifest and port documentation.
-* Use egui for the requested UI. An application framework such as `eframe` is a candidate for windowing and application integration, not an already accepted dependency.
+* Use egui for the UI and `eframe` for native windowing/application integration. The current package uses eframe 0.32.3, which matches the package's declared Rust 1.85 minimum; keep the version and lockfile compatible with that minimum.
 * Choose compatible dependency versions and features when scaffolding the port; do not copy the source repository's Bevy dependencies or assume a rendering backend.
 * Commit the application's `Cargo.lock` and validate against it. Generate or update it intentionally when dependencies change.
 * Inspect the installed toolchain and existing manifests before installing tools or selecting versions. Record unavailable checks and compatibility constraints explicitly.
@@ -44,6 +44,8 @@ Keep emulator rules independent of native graphics APIs. Use the chosen framewor
 
 Native desktop and browser builds have different integration requirements. Do not infer a browser target merely because the existing emulator uses web technologies. Confirm promised targets before configuring platform-specific dependencies or CI, and validate each promised platform separately.
 
+For local macOS visual inspection, run `sh dev/src/4051-Emulator/rs/4051-Emulator-rs/scripts/package-macos-app.sh` to create a bundle under the workspace `target/macos/` directory. Its bundle identifier lets macOS app-aware inspection tools identify the native window; opening the bundle may register it with the user's Launch Services database. This local debug bundle is not a signed or distributable release.
+
 == Rust validation
 
 Once a package exists, run commands from its directory, or from the workspace root if a workspace is adopted. For a package with a committed lockfile, the baseline is:
@@ -68,7 +70,7 @@ For cross-platform promises, build and test each supported operating system and 
 * Use idiomatic Rust, explicit ownership and error propagation, cohesive modules, and abstractions justified by current needs.
 * Test deterministic emulator behavior independently of egui where practical. Add integration tests for genuine component and runtime boundaries.
 * The root `Cargo.toml` is a virtual workspace manifest with resolver 3. The member manifest at `dev/src/4051-Emulator/rs/4051-Emulator-rs/Cargo.toml` defines the package and its `lib.rs` library target; the workspace shares the root `Cargo.lock` and `target/` directory.
-* Keep public-API tests in `dev/src/4051-Emulator/rs/4051-Emulator-rs/tests/`, importing the library as an external consumer. Cargo discovers these tests automatically relative to the member manifest, without explicit `[[test]]` targets; `cargo test --locked` runs them from the workspace or member directory, and `cargo test --locked --test cpu --test machine` selects the current suites. Keep tests that genuinely need private implementation access in private `#[cfg(test)] mod tests` modules beside the implementation, not in the integration directory.
+* Keep test bodies and helpers in files separate from implementation code. Put public-API tests in `dev/src/4051-Emulator/rs/4051-Emulator-rs/tests/`, importing the library as an external consumer. Cargo discovers these tests automatically relative to the member manifest, without explicit `[[test]]` targets; `cargo test --locked` runs them from the workspace or member directory, and `cargo test --locked --test cpu --test machine` selects the current suites. Put tests that genuinely need private implementation access in separate files declared by private `#[cfg(test)] mod tests;` modules, not in the integration directory.
 * Protect observable behavior, important boundaries, and error paths with meaningful assertions. Do not widen production visibility solely for tests or treat coverage percentages as the quality goal.
 * Follow the repository-specific comment requirements in the link:../../../.github/copilot-instructions.md[workspace instructions]. The local `update-rust-code-comments` and `update-rust-test-comments` skills provide evidence-grounded review workflows; their general advice does not weaken the repository's required module/group and per-test comment conventions.
 * Follow the link:../../../.github/copilot-instructions.md[workspace instructions] and the local Rust code-quality and test-quality reviewers for implementation increments and test changes.
