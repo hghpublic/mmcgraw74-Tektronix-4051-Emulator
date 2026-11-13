@@ -293,7 +293,7 @@ fn compare_and_subtract_with_carry_detect_signed_overflow_without_losing_compare
 // Why: The B-register opcode family must preserve compare semantics and honor carry-in like A.
 #[test]
 fn b_compare_subtract_and_subtract_with_carry_detect_signed_overflow() {
-    // Arrange: Begin with B=0x80; the program compares, reloads B, then subtracts.
+    // Arrange: Begin with B=0x80; the program subtracts, reloads, compares, then subtracts.
     let mut bus = TestBus::default();
     bus.set_reset_vector(0x2000);
     bus.load(0x2000, &[0xc0, 0x01, 0xc6, 0x80, 0xc1, 0x01, 0xc2, 0x00]);
@@ -301,9 +301,9 @@ fn b_compare_subtract_and_subtract_with_carry_detect_signed_overflow() {
     cpu.reset(&mut bus).unwrap();
     cpu.registers.b = 0x80;
 
-    // Act: Compare B with one.
+    // Act: Subtract one from B.
     cpu.step(&mut bus).unwrap();
-    // Assert: Compare reports overflow without changing B.
+    // Assert: SUBB stores the signed-boundary result and reports overflow.
     assert_eq!(cpu.registers.b, 0x7f);
     assert_eq!(cpu.registers.ccr & (NEGATIVE | CARRY | ZERO), 0);
     assert_ne!(cpu.registers.ccr & OVERFLOW, 0);
@@ -353,7 +353,7 @@ fn direct_indexed_and_extended_loads_and_stores_use_their_addressing_modes() {
     for _ in 0..6 {
         cpu.step(&mut bus).unwrap();
     }
-    // Assert: Each load reaches the value stored at its direct/indexed/extended address.
+    // Assert: The final extended loads leave their values in A and B.
     assert_eq!((cpu.registers.a, cpu.registers.b), (0x33, 0x66));
 
     // Act: Store the loaded values through the same address forms.
@@ -458,13 +458,17 @@ fn word_load_store_and_compare_support_immediate_and_extended_modes() {
     let mut cpu = Cpu6800::default();
     cpu.reset(&mut bus).unwrap();
 
-    // Act: Load IX, store its word, and compare it with the original operand.
+    // Act: Load the immediate word into IX.
     cpu.step(&mut bus).unwrap();
-    // Assert: The word bytes retain big-endian order and CPX reports equality.
+    // Assert: IX contains the immediate word.
     assert_eq!(cpu.registers.ix, 0x1234);
+    // Act: Store IX to the extended address.
     cpu.step(&mut bus).unwrap();
+    // Assert: The stored bytes retain big-endian order.
     assert_eq!(&bus.memory[0x3000..0x3002], &[0x12, 0x34]);
+    // Act: Compare IX with the original immediate operand.
     cpu.step(&mut bus).unwrap();
+    // Assert: CPX preserves IX and reports equality.
     assert_eq!(cpu.registers.ix, 0x1234);
     assert_ne!(cpu.registers.ccr & ZERO, 0);
 }
@@ -980,9 +984,9 @@ fn immediate_b_instruction_family_updates_b_and_flags() {
     assert_eq!(cpu.registers.b, 0xfe);
     assert_ne!(cpu.registers.ccr & ZERO, 0);
 
-    // Act: Subtract 0xfd with the carry produced by CMPB.
+    // Act: Subtract 0xfd with the cleared carry produced by equal CMPB operands.
     cpu.step(&mut bus).unwrap();
-    // Assert: Carry-in changes the result to one.
+    // Assert: With no borrow-in, the result is one.
     assert_eq!(cpu.registers.b, 1);
     assert_eq!(cpu.registers.ccr & (NEGATIVE | ZERO | CARRY), 0);
 
@@ -1058,7 +1062,7 @@ fn immediate_b_instruction_family_updates_b_and_flags() {
     );
 }
 
-// What: Load positive-sign and zero values into B with unrelated flags pre-set.
+// What: Load a negative-sign value and zero into B with unrelated flags pre-set.
 // Why: Loads should recompute N/Z/V while preserving condition codes they do not define.
 #[test]
 fn immediate_b_load_updates_nzv_and_preserves_other_flags() {

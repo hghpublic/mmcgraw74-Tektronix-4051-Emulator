@@ -7,3 +7,10 @@ publish = false
 
 [lib]
 path = "lib.rs"
+
+[[bin]]
+name = "tek4051-emulator"
+path = "main.rs"
+
+[dependencies]
+eframe = "0.32.3"

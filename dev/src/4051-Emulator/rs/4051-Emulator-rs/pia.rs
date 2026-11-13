@@ -1,4 +1,8 @@
 //! Models the machine's PIA ports, data direction, and edge-latched control flags.
+//!
+//! Each port shares an address between its data and direction registers. Data
+//! reads combine input and output bits and clear that port's latched flags;
+//! control-line transitions latch flags according to the selected edge and mode.
 
 const PIA_PORT_A_OFFSET: u16 = 0;
 const PIA_CONTROL_A_OFFSET: u16 = 1;
@@ -53,6 +57,7 @@ pub(crate) struct PiaRegisters {
 }
 
 impl PiaRegisters {
+    // Control bit 2 selects the data register; reading data also clears flags.
     pub(crate) fn read(&mut self, register: u16) -> u8 {
         match register {
             PIA_PORT_A_OFFSET if self.control_a & PIA_DATA_DIRECTION_SELECT_MASK != 0 => {
@@ -87,6 +92,7 @@ impl PiaRegisters {
         }
     }
 
+    // C1 always accepts input edges, whereas C2 only latches them in input mode.
     pub(crate) fn signal_control_line(&mut self, line: PiaControlLine, level: bool) {
         let (previous, control, flag) = match line {
             PiaControlLine::Ca1 => (&mut self.ca1, &mut self.control_a, PIA_C1_FLAG_MASK),
@@ -149,5 +155,12 @@ impl PiaRegisters {
             PiaPort::B => self.output_b,
         };
         output & mask != 0
+    }
+
+    pub(crate) fn output(&self, port: PiaPort) -> u8 {
+        match port {
+            PiaPort::A => self.output_a,
+            PiaPort::B => self.output_b,
+        }
     }
 }

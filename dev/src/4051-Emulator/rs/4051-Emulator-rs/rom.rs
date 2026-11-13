@@ -1,3 +1,8 @@
+//! ROM images embedded in the binary and their expected sizes and fingerprints.
+//!
+//! The machine bus maps these byte arrays into the base and selected bank
+//! windows; expander images concatenate the slots in address-field order.
+
 pub const BASE_ROM_SIZE: usize = 32 * 1024;
 pub const BASE_ROM_FNV1A64: u64 = 0x9344f0b89d357280;
 pub const BASE_ROM_SHA256: &str =

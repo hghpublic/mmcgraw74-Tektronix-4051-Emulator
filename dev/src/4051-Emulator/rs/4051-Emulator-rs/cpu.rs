@@ -614,10 +614,10 @@ impl Cpu6800 {
             0x0b => self.set_flag(OVERFLOW, true),
             0x0c => self.set_flag(CARRY, false),
             0x0d => self.set_flag(CARRY, true),
-            // A/B arithmetic and transfers reuse the same result/flag helpers
-            // as the corresponding immediate and memory instructions.
             0x0e => self.set_flag(INTERRUPT_MASK, false),
             0x0f => self.set_flag(INTERRUPT_MASK, true),
+            // A/B arithmetic and transfers reuse the same result/flag helpers
+            // as the corresponding immediate and memory instructions.
             0x10 => self.registers.a = self.subtract8(self.registers.a, self.registers.b, 0),
             0x11 => {
                 self.subtract8(self.registers.a, self.registers.b, 0);

@@ -1,8 +1,13 @@
 //! Implements the 4051 machine's RAM, ROM, I/O, and PIA-backed interrupt signals.
+//!
+//! I/O is decoded before ROM, and the bank register affects only its switchable
+//! window. PIA accesses also drive the display and keyboard state; unsupported
+//! ROM-window reads return an error instead of falling back to the base image.
 
 use std::{error::Error, fmt};
 
 use crate::cpu::MemoryBus;
+use crate::display::{DisplayControl, DisplayGranularity, DisplayModel, ScreenCommand};
 use crate::pia::{PiaControlLine, PiaId, PiaPort, PiaRegisters};
 use crate::rom::{
     BASE_ROM, LEFT_BACKPACK_ROM, LEFT_ROM_EXPANDER_BANK, OVERFLOW_ROM, RIGHT_BACKPACK_ROM,
@@ -54,6 +59,7 @@ pub(crate) struct MachineBus {
     keyboard_ctrl_0: bool,
     keyboard_tty_0: bool,
     display_erase_pending: bool,
+    display: DisplayModel,
 }
 
 impl Default for MachineBus {
@@ -69,6 +75,7 @@ impl Default for MachineBus {
             keyboard_ctrl_0: true,
             keyboard_tty_0: true,
             display_erase_pending: false,
+            display: DisplayModel::default(),
         }
     }
 }
@@ -77,7 +84,28 @@ impl MachineBus {
     fn read_io(&mut self, address: u16) -> u8 {
         for (index, base) in PIA_BASES.iter().copied().enumerate() {
             if (base..base + 4).contains(&address) {
-                return self.pias[index].read(address - base);
+                let port = address - base;
+                // The web board invokes SOT/ADOT on data-register reads, before returning PIA data.
+                let command = match (index, port) {
+                    (pia, 0)
+                        if pia == PiaId::DisplayY as usize
+                            && self.pias[pia].is_data_direction_register_selected(PiaPort::A) =>
+                    {
+                        Some(ScreenCommand::StartOfText)
+                    }
+                    (pia, 0)
+                        if pia == PiaId::DisplayX as usize
+                            && self.pias[pia].is_data_direction_register_selected(PiaPort::A) =>
+                    {
+                        Some(ScreenCommand::AlphaDot)
+                    }
+                    _ => None,
+                };
+                if let Some(command) = command {
+                    let control = self.display_control();
+                    self.display.apply_screen_command(command, control);
+                }
+                return self.pias[index].read(port);
             }
         }
         0
@@ -91,22 +119,56 @@ impl MachineBus {
         }
         for (index, base) in PIA_BASES.iter().copied().enumerate() {
             if (base..base + 4).contains(&address) {
-                let pia = &mut self.pias[index];
-                if index == PiaId::DisplayX as usize
-                    && address == base
-                    && pia.is_data_direction_register_selected(PiaPort::A)
-                    && pia.output_bit_is_high(PiaPort::A, DISPLAY_ERASE_REQUEST_MASK)
-                    && value & DISPLAY_ERASE_REQUEST_MASK == 0
+                let port = address - base;
+                let erase_started;
+                let buffer_clock;
                 {
-                    pia.set_input_bit(PiaPort::A, DISPLAY_READY_MASK, false);
-                    self.display_erase_pending = true;
+                    let pia = &mut self.pias[index];
+                    erase_started = index == PiaId::DisplayX as usize
+                        && port == 0
+                        && pia.is_data_direction_register_selected(PiaPort::A)
+                        && pia.output_bit_is_high(PiaPort::A, DISPLAY_ERASE_REQUEST_MASK)
+                        && value & DISPLAY_ERASE_REQUEST_MASK == 0;
+                    if erase_started {
+                        pia.set_input_bit(PiaPort::A, DISPLAY_READY_MASK, false);
+                    }
+                    pia.write(port, value);
+                    // BUFCLK follows the DisplayX port-B output-latch write.
+                    buffer_clock = index == PiaId::DisplayX as usize
+                        && port == 2
+                        && pia.is_data_direction_register_selected(PiaPort::B);
                 }
-                pia.write(address - base, value);
+                if erase_started {
+                    self.display_erase_pending = true;
+                    self.display.begin_erase();
+                }
+                if buffer_clock {
+                    let control = self.display_control();
+                    self.display
+                        .apply_screen_command(ScreenCommand::BufferClock, control);
+                }
                 return;
             }
         }
     }
 
+    fn display_control(&self) -> DisplayControl {
+        let display_y = &self.pias[PiaId::DisplayY as usize];
+        let display_x = &self.pias[PiaId::DisplayX as usize];
+        // The display controller samples the PIA output latches, not the merged pin reads.
+        let y_output_a = display_y.output(PiaPort::A);
+        let x_output_a = display_x.output(PiaPort::A);
+        DisplayControl {
+            x_character: (y_output_a >> 5) & 0x07,
+            y_character: (y_output_a >> 2) & 0x07,
+            vector_0: x_output_a & 0x40 != 0,
+            ven_1: x_output_a & 0x80 != 0,
+            x: (u16::from(x_output_a & 0x03) << 8) | u16::from(display_x.output(PiaPort::B)),
+            y: (u16::from(y_output_a & 0x03) << 8) | u16::from(display_y.output(PiaPort::B)),
+        }
+    }
+
+    // Board interrupt routing uses the latched PIA flags directly.
     pub(crate) fn irq_pending(&self) -> bool {
         [PiaId::DisplayX, PiaId::Keyboard, PiaId::Gpib]
             .into_iter()
@@ -132,6 +194,7 @@ impl MachineBus {
         self.pias[pia as usize].signal_control_line(line, level);
     }
 
+    // Key data and active-low modifier levels occupy separate keyboard ports.
     pub(crate) fn keyboard_press(&mut self, key: u8) {
         self.pias[PiaId::Keyboard as usize].set_input(
             PiaPort::A,
@@ -162,8 +225,23 @@ impl MachineBus {
     }
 
     pub(crate) fn display_ready(&mut self) {
+        if self.display_erase_pending {
+            self.display.complete_erase();
+        }
         self.pias[PiaId::DisplayX as usize].set_input_bit(PiaPort::A, DISPLAY_READY_MASK, true);
         self.display_erase_pending = false;
+    }
+
+    pub(crate) fn display(&self) -> &DisplayModel {
+        &self.display
+    }
+
+    pub(crate) fn set_display_granularity(&mut self, granularity: DisplayGranularity) {
+        self.display.set_granularity(granularity);
+    }
+
+    pub(crate) fn refresh_display(&mut self) {
+        self.display.refresh();
     }
 
     pub(crate) fn display_erase_pending(&self) -> bool {
@@ -182,6 +260,7 @@ impl MemoryBus for MachineBus {
         if (IO_START..=IO_END).contains(&address) {
             return Ok(self.read_io(address));
         }
+        // A nonzero selector changes only the bank window, not the rest of ROM.
         if address >= ROM_BASE {
             if self.bank_select != 0
                 && (BANK_SWITCH_WINDOW_START..BANK_SWITCH_WINDOW_END).contains(&address)

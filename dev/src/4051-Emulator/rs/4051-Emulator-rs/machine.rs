@@ -1,6 +1,11 @@
 //! Coordinates CPU execution with machine-bus signals for the Tektronix 4051.
+//!
+//! Interrupt sources are sampled before each instruction. NMI takes priority;
+//! held NMI is serviced once until cleared; a masked IRQ is reconsidered when
+//! the CPU's interrupt mask is removed.
 
 use crate::cpu::{Cpu6800, CpuError, CpuRegisters, MemoryBus, StepOutcome};
+use crate::display::{DisplayGranularity, DisplayModel};
 use crate::machine_bus::MachineBus;
 
 pub use crate::machine_bus::{KeyboardModifier, MachineBusError};
@@ -16,12 +21,16 @@ pub struct Machine {
 }
 
 impl Machine {
+    /// Resets the CPU and interrupt tracking; RAM and peripheral state are retained.
     pub fn reset(&mut self) -> Result<(), CpuError<MachineBusError>> {
         self.irq_seen = false;
         self.nmi_seen = false;
         self.cpu.reset(&mut self.bus)
     }
 
+    /// Services an eligible interrupt, then executes one instruction.
+    ///
+    /// Bus and CPU errors are returned without rolling back earlier effects.
     pub fn step(&mut self) -> Result<StepOutcome, CpuError<MachineBusError>> {
         if self.bus.nmi_pending() {
             if !self.nmi_seen {
@@ -46,7 +55,9 @@ impl Machine {
         self.cpu.step(&mut self.bus)
     }
 
-    /// Execute no more than `instruction_budget` instructions.
+    /// Executes at most `instruction_budget` instructions and returns the count.
+    ///
+    /// Stops at the first error; instructions completed earlier remain effective.
     pub fn run_steps(
         &mut self,
         instruction_budget: usize,
@@ -67,6 +78,7 @@ impl Machine {
         &mut self.cpu
     }
 
+    /// Reads the mapped byte; I/O reads can have peripheral side effects.
     pub fn read_byte(&mut self, address: u16) -> Result<u8, MachineBusError> {
         self.bus.read_byte(address)
     }
@@ -83,6 +95,7 @@ impl Machine {
         self.bus.signal_pia_control_line(pia, line, level);
     }
 
+    /// Places a seven-bit Tek key code on the keyboard input port.
     pub fn keyboard_press(&mut self, key: u8) {
         self.bus.keyboard_press(key);
     }
@@ -99,6 +112,7 @@ impl Machine {
         self.bus.toggle_caps_lock();
     }
 
+    /// Latches the keyboard PIA interrupt flag for a host keyboard callback.
     pub fn keyboard_interrupt_tick(&mut self) {
         self.bus.keyboard_interrupt_tick();
     }
@@ -109,11 +123,26 @@ impl Machine {
         self.bus.display_ready();
     }
 
+    /// Returns the machine's read-only display framebuffer and pixel settings.
+    pub fn display(&self) -> &DisplayModel {
+        self.bus.display()
+    }
+
+    /// Selects the fine, coarse, or mixed display dot sizing mode.
+    pub fn set_display_granularity(&mut self, granularity: DisplayGranularity) {
+        self.bus.set_display_granularity(granularity);
+    }
+
+    pub(crate) fn refresh_display(&mut self) {
+        self.bus.refresh_display();
+    }
+
     /// Remains set until the host completes the erase with `display_ready`.
     pub fn display_erase_pending(&self) -> bool {
         self.bus.display_erase_pending()
     }
 
+    /// Returns the current ROM selector and expander address field.
     pub fn bank_selection(&self) -> (u8, u8) {
         self.bus.bank_selection()
     }
