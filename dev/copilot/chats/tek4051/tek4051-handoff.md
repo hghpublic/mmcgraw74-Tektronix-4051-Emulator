@@ -93,6 +93,8 @@ Preserve these reference limitations unless separately authorized to adapt them:
 
 The [architecture design](../../../docs/tek4051/web/design/design.typ) separates current implementation from planned components. The [migration log](../../../docs/tek4051/migration-log.typ) contains earlier core/ROM decisions and evidence; use daily history for subsequent increments and asset-digest records.
 
+Documentation review follow-up: the phased plan, migration log, baseline summary, and design now distinguish current implementation from historical checkpoints and identify Auto Load as work still required. Their updated Typst files compiled successfully. The draft baseline test specification's original test-inventory metadata remains historical and must be reconciled before freezing.
+
 ## Session environment caution
 
 The user reported that a **new chat starts with sandboxing enabled**, while this older chat reported disabled despite repeated `/sandbox enable`. The cause is unresolved; no settings were changed during investigation. Verify the effective policy in the chat being used with `/sandbox policy`; neither this handoff nor another chat's result establishes its sandbox state.

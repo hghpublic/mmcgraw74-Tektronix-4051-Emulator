@@ -182,3 +182,14 @@
 - At the user's request, rewrote the handoff as a current-state summary with decisions, module ownership, compatibility boundaries, scoped validation, baseline/reference limitations, and ordered next actions. Removed superseded suite totals and future-tense UI claims; retained native verification gaps and session-specific sandbox caution.
 - Historical entries remain unchanged in daily history. No emulator code or configuration changed; no build or test rerun was needed for this Markdown-only edit.
 - Validated all 29 handoff links, checked diff whitespace, and confirmed both edited documents are not Git-ignored.
+
+## Reviewing migration documents
+
+- Reviewed the five documents under `dev/docs/tek4051` against each other, the current handoff, the Cargo manifest, and the draft test specification. Identified outdated current-state claims in the phased plan and migration log, ambiguous historical test-inventory claims in the baseline summary, and design wording that overlooks the implemented screen-copy dialog.
+- The graded guide is the most current overview, but Phase 3 of the phased plan lacks an explicit Auto Load implementation work item. Recommended clarifying document roles and historical scope; no migration documents or emulator code were changed, and tests were not run.
+
+## Correcting migration documents
+
+- Updated the phased plan's current implementation, ROM mappings, target decisions, root versus inherited `npm test` distinction, and explicit Auto Load work item. Updated the migration log's current UI/ROM status while retaining and labeling historical checkpoints.
+- Scoped the baseline summary's old test inventory to its capture date and clarified the design's implemented screen-copy dialog versus remaining storage dialogs. The separate draft baseline test specification's original test metadata remains historical and must be reconciled before freeze.
+- Compiled `migration-plan.typ`, `design.typ`, and `migration-log.typ` with `typst compile`; removed generated PDFs. `git diff --check` passed, and none of the changed documents were Git-ignored. No code or tests changed.
