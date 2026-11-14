@@ -133,3 +133,9 @@
 - Reviewed the architecture design against the Rust machine, bus, runtime, eframe shell, input adapters, draft baseline, and graded guide. Replaced stale workspace, eframe, core, display, persistence, and reference-coverage claims; described implemented module ownership and frame ordering separately from planned peripherals and storage.
 - Recorded the current ROM-bank and pointer-timing deviations, bounded BASIC comparison, baseline gaps, and unverified native interaction. Updated the graded guide and handoff to reflect the refreshed design; earlier history remains a historical record.
 - `typst compile` passed for both changed Typst documents, with temporary PDFs outside the repository removed. No emulator code changed or test suite was rerun.
+
+## Native program-control keys
+
+- Added Auto Number and Step Program buttons using the web reference's codes `0x75` and `0x76` through the existing queued pointer path. Added separate-file egui/PIA tests for each button with and without Shift; native pointer input and actual program-control workflows remain unverified.
+- Validation passed: `cargo fmt --all -- --check`, `cargo test --locked -p tek4051-emulator --bin tek4051-emulator --test host_runtime` (34 passed), `cargo clippy --locked -p tek4051-emulator --all-targets -- -D warnings`, `cargo build --locked -p tek4051-emulator`, and Typst compilation of the updated architecture and graded guide. Temporary PDFs were removed.
+- Both Rust reviewers reported no actionable findings; the test reviewer also ran the full package suite (92 passed). External Git activity incorporated the Rust changes into HEAD `cf9b356`; the assistant did not stage or commit them.
