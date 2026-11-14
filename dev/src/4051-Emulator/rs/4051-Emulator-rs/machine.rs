@@ -128,6 +128,15 @@ impl Machine {
         self.bus.display()
     }
 
+    /// Takes ordered framebuffer snapshots requested by the display-copy signal.
+    ///
+    /// Each snapshot contains `DisplayModel::WIDTH * DisplayModel::HEIGHT` green
+    /// intensities in row-major order. The second return value counts requests
+    /// dropped after the bounded queue filled, saturating at `usize::MAX`.
+    pub fn take_screen_copies(&mut self) -> (Vec<Vec<u8>>, usize) {
+        self.bus.take_screen_copies()
+    }
+
     /// Selects the fine, coarse, or mixed display dot sizing mode.
     pub fn set_display_granularity(&mut self, granularity: DisplayGranularity) {
         self.bus.set_display_granularity(granularity);

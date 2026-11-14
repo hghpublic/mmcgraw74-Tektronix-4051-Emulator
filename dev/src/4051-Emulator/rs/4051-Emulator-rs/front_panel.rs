@@ -68,7 +68,7 @@ impl Default for FrontPanel {
 }
 
 impl FrontPanel {
-    pub(super) fn show(&mut self, ui: &mut egui::Ui) {
+    pub(super) fn show(&mut self, ui: &mut egui::Ui) -> bool {
         ui.horizontal_wrapped(|ui| {
             ui.label("User keys (hold Shift for 11–20):");
             for index in 0..10_u8 {
@@ -85,6 +85,7 @@ impl FrontPanel {
                     (response.rect.intersect(ui.clip_rect()), code);
             }
         });
+        let mut copy_requested = false;
         ui.horizontal_wrapped(|ui| {
             ui.label("Program:");
             for (index, &(label, code)) in PROGRAM_KEYS.iter().enumerate() {
@@ -92,6 +93,7 @@ impl FrontPanel {
                 self.key_rects[USER_KEY_COUNT + EDITOR_KEYS.len() + index] =
                     (response.rect.intersect(ui.clip_rect()), code);
             }
+            copy_requested = ui.button("MAKE COPY").clicked();
             ui.label("Keyboard:");
             for (index, &(label, code)) in SPECIAL_KEYS.iter().enumerate() {
                 let response = ui.button(label);
@@ -99,6 +101,7 @@ impl FrontPanel {
                     (response.rect.intersect(ui.clip_rect()), code);
             }
         });
+        copy_requested
     }
 
     pub(super) fn pointer_event(

@@ -150,3 +150,59 @@ fn character_dots_follow_each_display_granularity() {
         Some(0)
     );
 }
+
+// What: Request display copies through the DisplayX output-A falling edge.
+// Why: Each request must capture the framebuffer at its own machine event.
+#[test]
+fn copy_signal_captures_ordered_display_snapshots() {
+    // Arrange: Select the data-direction register, then the output register.
+    let mut machine = Machine::default();
+    machine.write_byte(DISPLAY_X_PORT_A, 0x20).unwrap();
+    assert_eq!(machine.take_screen_copies(), (vec![], 0));
+    machine.write_byte(DISPLAY_X_CONTROL_A, 0x04).unwrap();
+
+    // Act: Copy the initial screen, then erase and copy on the same falling edge.
+    machine.write_byte(DISPLAY_X_PORT_A, 0x20).unwrap();
+    machine.write_byte(DISPLAY_X_PORT_A, 0).unwrap();
+    machine.write_byte(DISPLAY_X_PORT_A, 0).unwrap();
+    machine.write_byte(DISPLAY_X_PORT_A, 0x30).unwrap();
+    machine.write_byte(DISPLAY_X_PORT_A, 0).unwrap();
+
+    // Assert: Two distinct images are returned in order and the request queue drains.
+    let (copies, dropped) = machine.take_screen_copies();
+    assert_eq!(dropped, 0);
+    assert_eq!(copies.len(), 2);
+    assert_eq!(copies[0].len(), DisplayModel::WIDTH * DisplayModel::HEIGHT);
+    assert!(copies[0].iter().all(|&pixel| pixel == 0));
+    assert!(copies[1].iter().all(|&pixel| pixel == u8::MAX));
+    assert_eq!(machine.take_screen_copies(), (vec![], 0));
+}
+
+// What: Fill the pending screen-copy queue and request more copies.
+// Why: Unhandled requests must be counted without consuming unbounded memory or stopping the machine.
+#[test]
+fn screen_copy_queue_counts_overflow_and_continues() {
+    // Arrange: Select DisplayX output-A and generate eight copy edges.
+    let mut machine = Machine::default();
+    machine.write_byte(DISPLAY_X_CONTROL_A, 0x04).unwrap();
+    for _ in 0..8 {
+        machine.write_byte(DISPLAY_X_PORT_A, 0x20).unwrap();
+        machine.write_byte(DISPLAY_X_PORT_A, 0).unwrap();
+    }
+
+    // Act: Request two more copies while the queue is full.
+    for _ in 0..2 {
+        machine.write_byte(DISPLAY_X_PORT_A, 0x20).unwrap();
+        machine.write_byte(DISPLAY_X_PORT_A, 0).unwrap();
+    }
+
+    // Assert: Eight copies and two dropped requests are reported; later copies still work.
+    let (copies, dropped) = machine.take_screen_copies();
+    assert_eq!(copies.len(), 8);
+    assert_eq!(dropped, 2);
+    machine.write_byte(DISPLAY_X_PORT_A, 0x20).unwrap();
+    machine.write_byte(DISPLAY_X_PORT_A, 0).unwrap();
+    let (copies, dropped) = machine.take_screen_copies();
+    assert_eq!(copies.len(), 1);
+    assert_eq!(dropped, 0);
+}

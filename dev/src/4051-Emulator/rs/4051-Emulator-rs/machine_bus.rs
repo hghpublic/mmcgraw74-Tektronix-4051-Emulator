@@ -25,6 +25,8 @@ const OVERFLOW_ROM_END: u16 = 0x9800;
 const PIA_BASES: [u16; 5] = [0x878c, 0x8794, 0x8798, 0x87a8, 0x87b0];
 const DISPLAY_READY_MASK: u8 = 0x04;
 const DISPLAY_ERASE_REQUEST_MASK: u8 = 0x10;
+const DISPLAY_COPY_REQUEST_MASK: u8 = 0x20;
+const MAX_PENDING_SCREEN_COPIES: usize = 8;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MachineBusError {
@@ -60,6 +62,8 @@ pub(crate) struct MachineBus {
     keyboard_tty_0: bool,
     display_erase_pending: bool,
     display: DisplayModel,
+    screen_copies: Vec<Vec<u8>>,
+    dropped_screen_copies: usize,
 }
 
 impl Default for MachineBus {
@@ -76,6 +80,8 @@ impl Default for MachineBus {
             keyboard_tty_0: true,
             display_erase_pending: false,
             display: DisplayModel::default(),
+            screen_copies: Vec::new(),
+            dropped_screen_copies: 0,
         }
     }
 }
@@ -122,8 +128,14 @@ impl MachineBus {
                 let port = address - base;
                 let erase_started;
                 let buffer_clock;
+                let copy_requested;
                 {
                     let pia = &mut self.pias[index];
+                    copy_requested = index == PiaId::DisplayX as usize
+                        && port == 0
+                        && pia.is_data_direction_register_selected(PiaPort::A)
+                        && pia.output_bit_is_high(PiaPort::A, DISPLAY_COPY_REQUEST_MASK)
+                        && value & DISPLAY_COPY_REQUEST_MASK == 0;
                     erase_started = index == PiaId::DisplayX as usize
                         && port == 0
                         && pia.is_data_direction_register_selected(PiaPort::A)
@@ -141,6 +153,13 @@ impl MachineBus {
                 if erase_started {
                     self.display_erase_pending = true;
                     self.display.begin_erase();
+                }
+                if copy_requested {
+                    if self.screen_copies.len() < MAX_PENDING_SCREEN_COPIES {
+                        self.screen_copies.push(self.display.pixels().to_vec());
+                    } else {
+                        self.dropped_screen_copies = self.dropped_screen_copies.saturating_add(1);
+                    }
                 }
                 if buffer_clock {
                     let control = self.display_control();
@@ -234,6 +253,13 @@ impl MachineBus {
 
     pub(crate) fn display(&self) -> &DisplayModel {
         &self.display
+    }
+
+    pub(crate) fn take_screen_copies(&mut self) -> (Vec<Vec<u8>>, usize) {
+        (
+            std::mem::take(&mut self.screen_copies),
+            std::mem::take(&mut self.dropped_screen_copies),
+        )
     }
 
     pub(crate) fn set_display_granularity(&mut self, granularity: DisplayGranularity) {

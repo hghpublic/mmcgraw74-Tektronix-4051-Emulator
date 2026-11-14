@@ -10,10 +10,15 @@ mod keyboard_input;
 #[path = "main/tests.rs"]
 mod tests;
 
-use std::time::{Duration, Instant};
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+    time::{Duration, Instant},
+};
 
 use eframe::egui;
 use front_panel::FrontPanel;
+use image::{ExtendedColorType, ImageEncoder, codecs::png::PngEncoder};
 use keyboard_input::KeyboardInput;
 use tek4051_emulator::{
     display::{DisplayGranularity, DisplayModel},
@@ -55,6 +60,7 @@ struct Tek4051App {
     last_modifiers: egui::Modifiers,
     last_update: Instant,
     runtime_error: Option<String>,
+    screen_copy_notices: Vec<(bool, String)>,
 }
 
 impl Tek4051App {
@@ -80,6 +86,7 @@ impl Tek4051App {
             last_modifiers: egui::Modifiers::NONE,
             last_update: Instant::now(),
             runtime_error: None,
+            screen_copy_notices: Vec::new(),
         }
     }
 
@@ -111,8 +118,20 @@ impl Tek4051App {
 
 impl Tek4051App {
     fn update_at(&mut self, context: &egui::Context, now: Instant) {
+        self.update_at_with_save(context, now, &mut save_screen_dialog, &mut Instant::now);
+    }
+
+    fn update_at_with_save(
+        &mut self,
+        context: &egui::Context,
+        now: Instant,
+        save: &mut impl FnMut(&[u8]) -> Result<Option<PathBuf>, String>,
+        clock: &mut impl FnMut() -> Instant,
+    ) {
         self.advance_machine(now, self.last_modifiers);
         self.update_display_texture();
+        let (mut copies, dropped_copies) = self.machine.take_screen_copies();
+        let mut copy_requested = false;
 
         egui::TopBottomPanel::top("display_controls").show(context, |ui| {
             ui.horizontal(|ui| {
@@ -143,7 +162,14 @@ impl Tek4051App {
             if let Some(error) = &self.settings_error {
                 ui.colored_label(egui::Color32::LIGHT_RED, format!("Speed setting: {error}"));
             }
-            self.front_panel.show(ui);
+            for (error, notice) in &self.screen_copy_notices {
+                if *error {
+                    ui.colored_label(egui::Color32::LIGHT_RED, notice);
+                } else {
+                    ui.label(notice);
+                }
+            }
+            copy_requested = self.front_panel.show(ui);
         });
 
         egui::CentralPanel::default().show(context, |ui| {
@@ -164,6 +190,28 @@ impl Tek4051App {
 
         self.keyboard_input
             .handle_frame(&mut self.machine, context, &mut self.front_panel);
+        if copy_requested {
+            copies.push(self.machine.display().pixels().to_vec());
+        }
+        if !copies.is_empty() || dropped_copies != 0 {
+            self.screen_copy_notices.clear();
+            if dropped_copies != 0 {
+                self.screen_copy_notices.push((
+                    true,
+                    format!("At least {dropped_copies} screen copy request(s) could not be saved: queue full"),
+                ));
+            }
+            for pixels in copies {
+                self.screen_copy_notices.push(match save(&pixels) {
+                    Ok(Some(path)) => (false, format!("Screen copy saved: {}", path.display())),
+                    Ok(None) => (false, "Screen copy cancelled".to_owned()),
+                    Err(error) => (true, format!("Screen copy failed: {error}")),
+                });
+            }
+            // A native modal dialog must not add its open time to emulation.
+            self.last_update = clock();
+            context.request_repaint();
+        }
         self.last_modifiers = context.input(|input| {
             if input.focused {
                 input.modifiers
@@ -175,6 +223,32 @@ impl Tek4051App {
             context.request_repaint_after(Duration::from_millis(10));
         }
     }
+}
+
+fn save_screen_dialog(pixels: &[u8]) -> Result<Option<PathBuf>, String> {
+    let Some(path) = rfd::FileDialog::new()
+        .set_title("Save screen copy")
+        .set_file_name("screen.png")
+        .add_filter("PNG image", &["png"])
+        .save_file()
+    else {
+        return Ok(None);
+    };
+    save_screen(&path, pixels).map_err(|error| format!("{}: {error}", path.display()))?;
+    Ok(Some(path))
+}
+
+fn save_screen(path: &Path, pixels: &[u8]) -> Result<(), image::ImageError> {
+    let mut rgba = Vec::with_capacity(pixels.len() * 4);
+    for &intensity in pixels {
+        rgba.extend_from_slice(&[0, intensity, 0, u8::MAX]);
+    }
+    PngEncoder::new(File::create(path)?).write_image(
+        &rgba,
+        DisplayModel::WIDTH as u32,
+        DisplayModel::HEIGHT as u32,
+        ExtendedColorType::Rgba8,
+    )
 }
 
 impl eframe::App for Tek4051App {
