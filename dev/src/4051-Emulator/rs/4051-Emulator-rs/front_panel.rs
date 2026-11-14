@@ -1,4 +1,4 @@
-//! Presents user-definable and line-editor keys and schedules pointer input.
+//! Presents user-definable, line-editor, and program keys and schedules pointer input.
 //!
 //! The shifted functions use the same Tek codes with the Shift line active.
 //! Short presses and releases are extended so keyboard callbacks can observe
@@ -28,6 +28,7 @@ const EDITOR_KEYS: [(&str, u8); 5] = [
     ("CLEAR / REPRINT", 0x73),
     ("RECALL LINE / RECALL NEXT LINE", 0x74),
 ];
+const PROGRAM_KEYS: [(&str, u8); 2] = [("AUTO NUMBER", 0x75), ("STEP PROGRAM", 0x76)];
 
 struct Press {
     id: u64,
@@ -42,7 +43,7 @@ struct ActivePress {
 }
 
 pub(super) struct FrontPanel {
-    key_rects: [(Rect, u8); USER_KEY_COUNT + EDITOR_KEYS.len()],
+    key_rects: [(Rect, u8); USER_KEY_COUNT + EDITOR_KEYS.len() + PROGRAM_KEYS.len()],
     pointer_id: Option<u64>,
     next_id: u64,
     active: Option<ActivePress>,
@@ -53,7 +54,8 @@ pub(super) struct FrontPanel {
 impl Default for FrontPanel {
     fn default() -> Self {
         Self {
-            key_rects: [(Rect::NOTHING, 0); USER_KEY_COUNT + EDITOR_KEYS.len()],
+            key_rects: [(Rect::NOTHING, 0);
+                USER_KEY_COUNT + EDITOR_KEYS.len() + PROGRAM_KEYS.len()],
             pointer_id: None,
             next_id: 0,
             active: None,
@@ -78,6 +80,14 @@ impl FrontPanel {
             for (index, &(label, code)) in EDITOR_KEYS.iter().enumerate() {
                 let response = ui.button(label);
                 self.key_rects[USER_KEY_COUNT + index] =
+                    (response.rect.intersect(ui.clip_rect()), code);
+            }
+        });
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Program:");
+            for (index, &(label, code)) in PROGRAM_KEYS.iter().enumerate() {
+                let response = ui.button(label);
+                self.key_rects[USER_KEY_COUNT + EDITOR_KEYS.len() + index] =
                     (response.rect.intersect(ui.clip_rect()), code);
             }
         });

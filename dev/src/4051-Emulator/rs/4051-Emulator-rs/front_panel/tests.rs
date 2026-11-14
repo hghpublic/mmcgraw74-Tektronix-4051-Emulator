@@ -198,6 +198,48 @@ fn line_editor_buttons_send_reference_keys_and_shift() {
     }
 }
 
+// What: Press the Auto Number and Step Program buttons in both Shift states.
+// Why: Program controls must send the reference codes without changing the modifier line.
+#[test]
+fn program_buttons_send_reference_keys_and_shift() {
+    // Arrange: Paint the panel and locate both program controls.
+    let mut harness = PanelHarness::new();
+    let labels = harness.frame(vec![], Modifiers::NONE, true, Duration::ZERO);
+    let shift = Modifiers {
+        shift: true,
+        ..Modifiers::NONE
+    };
+
+    // Act: Hold and release each program button with and without Shift.
+    for (modifiers, shift_bit) in [(Modifiers::NONE, 1), (shift, 0)] {
+        for (label, code) in [("AUTO NUMBER", 0x75), ("STEP PROGRAM", 0x76)] {
+            let position = labels.iter().find(|(text, _)| text == label).unwrap().1;
+            harness.frame(
+                vec![
+                    Event::PointerMoved(position),
+                    pointer(position, true, modifiers),
+                ],
+                modifiers,
+                true,
+                Duration::ZERO,
+            );
+
+            // Assert: The key code and active-low modifier reach the keyboard PIA.
+            assert_eq!(harness.key_value(), 0x80 | code);
+            assert_eq!(harness.machine.read_byte(0x87aa).unwrap() & 1, shift_bit);
+            harness.frame(
+                vec![pointer(position, false, modifiers)],
+                Modifiers::NONE,
+                true,
+                Duration::from_millis(100),
+            );
+            assert_eq!(harness.key_value(), 0x80);
+            assert_eq!(harness.machine.read_byte(0x87aa).unwrap() & 1, 1);
+            harness.frame(vec![], Modifiers::NONE, true, Duration::from_millis(100));
+        }
+    }
+}
+
 // What: Queue a user key followed by a shifted line-editor key.
 // Why: Different front-panel groups must share ordered press and release timing.
 #[test]
