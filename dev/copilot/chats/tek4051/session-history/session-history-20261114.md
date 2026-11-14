@@ -193,3 +193,12 @@
 - Updated the phased plan's current implementation, ROM mappings, target decisions, root versus inherited `npm test` distinction, and explicit Auto Load work item. Updated the migration log's current UI/ROM status while retaining and labeling historical checkpoints.
 - Scoped the baseline summary's old test inventory to its capture date and clarified the design's implemented screen-copy dialog versus remaining storage dialogs. The separate draft baseline test specification's original test metadata remains historical and must be reconciled before freeze.
 - Compiled `migration-plan.typ`, `design.typ`, and `migration-log.typ` with `typst compile`; removed generated PDFs. `git diff --check` passed, and none of the changed documents were Git-ignored. No code or tests changed.
+
+## Reading the handoff
+
+- Read the current handoff and today's session history. The recorded project status and next actions remain current; no emulator or documentation content changes were needed beyond recording this handoff check.
+
+## Adding native Caps Lock control
+
+- Added a Caps Lock checkbox to the eframe shell and connected changes to the machine's existing keyboard TTY toggle. A focused private app test clicks the checkbox on and off and verifies the keyboard PIA key byte reflects each state; physical host Caps Lock events remain unwired.
+- Updated the architecture design, graded migration guide, and handoff to reflect the UI control and remaining limitations. Both Typst documents compiled; `cargo fmt --all -- --check`, the focused checkbox test, `cargo test --locked -p tek4051-emulator` (101 passed), strict all-target Clippy, `cargo build --locked -p tek4051-emulator`, and `git diff --check` passed. Both Rust reviewers reported no findings; the test reviewer noted the assertion validates machine-visible state rather than rendered checkbox appearance.

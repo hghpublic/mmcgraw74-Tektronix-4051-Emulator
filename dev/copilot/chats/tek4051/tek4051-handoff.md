@@ -1,6 +1,6 @@
 # Tektronix 4051 Emulator Handoff
 
-Updated: 14 November 2026.
+Updated: 14 November 2026 (Caps Lock UI increment).
 
 ## Start here
 
@@ -29,7 +29,7 @@ The root [Cargo.toml](../../../../Cargo.toml) is a virtual workspace using resol
 | CPU and machine | Selected MC6800 8/16-bit operations/addressing modes, branches, stack operations, SWI/RTI, IRQ/NMI, RAM, PIAs, keyboard state, and bounded stepping. Base/system-overflow ROMs, both backpacks, and all eight slots of both ROM expanders are mapped. | Complete CPU/board coverage, GPIB handshake, differential traces, and representative option-ROM program execution remain open. |
 | Startup and BASIC | Bounded tests reach the base-ROM keyboard routine at `0xC88A` and observe real-ROM key press/release handling without CPU register overrides. A runtime test enters `10 PRINT 1` and `RUN` through the Tek keyboard API and compares the stored-pixel mask with the web reference. | This proves one machine/runtime BASIC workflow, not native physical input, general BASIC compatibility, or full boot/display parity. |
 | Display and timing | A 1046-by-830 green-channel framebuffer models vectors, character dots, fine/coarse/mixed granularity, phosphor refresh, and erase flash/completion. `HostRuntime` schedules CPU/keyboard callbacks every 10 ms, refresh every 100 ms, and erase completion after 500 ms. | Native presentation, aspect-ratio/scaling parity, responsiveness, and real-time speed calibration need verification. |
-| Native shell and input | eframe renders changed display revisions and shows errors. Host key translation and Shift/Control input are wired, including focus-loss cleanup. Buttons cover speed x1 through x100, ten Shift-selectable user keys, five line-editor keys, Auto Number, Step Program, Home/Page, Rub Out, and Break. Synthetic tests exercise mappings, event ordering, timing, and selected ROM delivery. | Physical keyboard/pointer smoke tests and actual editor/program-control workflows remain unverified. Caps Lock UI, start/pause/reset, status indicators, and other remaining controls are incomplete. Machine execution errors stop the runtime; no UI recovery controls exist yet. |
+| Native shell and input | eframe renders changed display revisions and shows errors. Host key translation and Shift/Control input are wired, including focus-loss cleanup. Buttons cover speed x1 through x100, ten Shift-selectable user keys, five line-editor keys, Auto Number, Step Program, Home/Page, Rub Out, and Break. A Caps Lock checkbox toggles the machine's keyboard line. Synthetic tests exercise mappings, event ordering, timing, and selected ROM delivery. | Physical keyboard/pointer smoke tests and actual editor/program-control workflows remain unverified. Physical Caps Lock key input, start/pause/reset, status indicators, and other remaining controls are incomplete. Machine execution errors stop the runtime; no UI recovery controls exist yet. |
 | Screen copy | MAKE COPY and DisplayX output-A bit `0x20` falling edges capture snapshots. The app writes full-resolution RGBA PNG via `rfd` and `image`; it displays success, cancellation, and errors and excludes modal time from emulation. Tests cover event-time pixels through PNG decode, timing, erase/copy ordering, overflow, and painted overflow warnings. | Native Save As interaction and overwrite confirmation have not been manually verified. |
 | Storage and peripherals | Immutable ROM mappings are available. | Native GPIB routing/devices, Loader/RTC/tape workflows, storage/import/export, Auto Load, printer, and UI beep/click audio are not implemented. Imported flash-drive program sets therefore remain unavailable in Rust. |
 
@@ -52,18 +52,19 @@ The root [Cargo.toml](../../../../Cargo.toml) is a virtual workspace using resol
 
 ## Latest recorded validation
 
-These are recorded results from the screen-copy increment on 14 November, not fresh runs for this handoff edit:
+Validation for the native Caps Lock UI increment on 14 November:
 
 ```sh
 cargo fmt --all -- --check
-cargo test --locked -p tek4051-emulator --bin tek4051-emulator --test display --test host_runtime
+cargo test --locked -p tek4051-emulator
 cargo clippy --locked -p tek4051-emulator --all-targets -- -D warnings
 cargo build --locked -p tek4051-emulator
+git diff --check
 ```
 
-- The focused test command passed **44 tests**: 34 binary, 4 display, and 6 host-runtime tests. This is not a full-suite total. The final painted-warning assertion also passed its focused rerun and strict Clippy.
-- Both required Rust reviewers confirmed their screen-copy findings resolved. The test reviewer additionally reported a passing full-package run; no current full-suite total is asserted here.
-- The architecture and graded guide compiled with `typst compile`; temporary PDFs were removed.
+- The full package test command passed **101 tests**: 35 binary, 32 CPU, 4 display, 6 host-runtime, and 24 machine tests.
+- Strict all-target Clippy and the locked package build passed. Both updated Typst documents compiled; temporary PDFs were removed.
+- Both required Rust reviewers reported no findings for this increment.
 - Rust 1.85 compatibility of the current dependency graph and non-macOS platforms have not been tested.
 - An earlier native shell screenshot verified window presentation, not input or display parity. A later launch confirmed window discovery, then exited with status 0; do not assume an emulator process is still running.
 - Latest recorded root `npm test` result: **26 passed, 6 explicit skips**. This is web-reference evidence, not Rust parity certification.
