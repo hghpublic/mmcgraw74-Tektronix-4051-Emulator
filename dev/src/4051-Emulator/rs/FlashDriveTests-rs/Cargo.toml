@@ -1,0 +1,82 @@
+[package]
+name = "tek4051-flash-drive-tests"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+
+[features]
+interactive = []
+
+[[test]]
+name = "simple_demo"
+path = "tests/simple_demo.rs"
+harness = false
+required-features = ["interactive"]
+
+[[test]]
+name = "battlestar"
+path = "tests/battlestar.rs"
+harness = false
+required-features = ["interactive"]
+
+[[test]]
+name = "star_wars"
+path = "tests/star_wars.rs"
+harness = false
+required-features = ["interactive"]
+
+[[test]]
+name = "benchmark"
+path = "tests/benchmark.rs"
+harness = false
+required-features = ["interactive"]
+
+[[test]]
+name = "asteroids"
+path = "tests/asteroids.rs"
+harness = false
+required-features = ["interactive"]
+
+[[test]]
+name = "f35"
+path = "tests/f35.rs"
+harness = false
+required-features = ["interactive"]
+
+[[test]]
+name = "fractals"
+path = "tests/fractals.rs"
+harness = false
+required-features = ["interactive"]
+
+[[test]]
+name = "pictures"
+path = "tests/pictures.rs"
+harness = false
+required-features = ["interactive"]
+
+[[test]]
+name = "svg2fg"
+path = "tests/svg2fg.rs"
+harness = false
+required-features = ["interactive"]
+
+[[test]]
+name = "spacelab"
+path = "tests/spacelab.rs"
+harness = false
+required-features = ["interactive"]
+
+[[test]]
+name = "michlanglo"
+path = "tests/michlanglo.rs"
+harness = false
+required-features = ["interactive"]
+
+[dev-dependencies]
+eframe = "0.32.3"
+tek4051-emulator = { path = "../4051-Emulator-rs" }
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+winit = { version = "=0.30.13", default-features = false }
