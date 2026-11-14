@@ -135,7 +135,9 @@ The machine maps base and overflow ROMs, the backpack payloads, and all eight sl
 
 The host runs CPU and keyboard callbacks at 10 ms, phosphor refresh at 100 ms, and erase completion after 500 ms. Each CPU callback has an instruction budget derived from the selected speed. Machine errors stop the runtime and are shown in the UI; invalid speed settings are reported without replacing the prior setting. The app does not currently expose recovery controls for a stopped runtime.
 
-Native GPIB routing and devices, tape storage/import, Auto Load, printer, audio, screen copy, and remaining lifecycle/front-panel controls are future work. The machine supports Caps Lock state, but the native adapter does not wire a Caps Lock control. The current window has been launched and an earlier shell was visually observed; native input and presentation parity remain unverified.
+The Make Copy button and the DisplayX output-A bit `0x20` falling edge capture the current framebuffer. The machine preserves up to eight ordered snapshots and counts additional requests that cannot be queued; the app reports the lost copies without stopping emulation. The native app uses the selected Save As dialog and writes a full-resolution PNG; it reports save failures and cancellation. The modal dialog pauses emulation rather than adding dialog time to the next update. Unlike the web's automatic download, this requires a destination choice; native dialog behavior and overwrite confirmation remain unverified.
+
+Native GPIB routing and devices, tape storage/import, Auto Load, printer, audio, and remaining lifecycle/front-panel controls are future work. The machine supports Caps Lock state, but the native adapter does not wire a Caps Lock control. The current window has been launched and an earlier shell was visually observed; native input and presentation parity remain unverified.
 
 == Target separation and ownership
 
@@ -152,9 +154,9 @@ Native GPIB routing and devices, tape storage/import, Auto Load, printer, audio,
 1. Advance elapsed time using the previous frame's modifiers and speed. `FrontPanel` divides the interval at queued pointer transitions and calls `HostRuntime`, which executes due machine and display callbacks.
 2. Upload the read-only framebuffer when its revision changes, then lay out the display, controls, and panel. A speed selection affects subsequent elapsed time, not the interval already advanced.
 3. Process host-key and pointer events in source order. The keyboard adapter translates supported keys and modifiers into machine operations; the panel queues rapid pointer taps and enforces minimum 100 ms press and release intervals.
-4. On focus loss, clear held input and pending panel presses. Request the next repaint while the runtime is healthy; display an execution error if it stops.
+4. On focus loss, clear held input and pending panel presses. Present any captured screen-copy requests in order through a native Save As dialog; show success, cancellation, or error and exclude modal time from the next emulation interval. Request the next repaint while the runtime is healthy; display an execution error if it stops.
 
-File, audio, and printer requests are planned application adapters, not part of this current frame flow. Real-time responsiveness under sustained or delayed frames still needs native validation.
+Storage file, audio, and printer requests are planned application adapters, not part of this current frame flow. Real-time responsiveness under sustained or delayed frames still needs native validation.
 
 The core should expose snapshot-able state or narrow test interfaces for instruction traces, memory/PIA state, GPIB transcripts, storage records, and display output. The UI should be testable at the action/state level without requiring the CPU implementation to depend on egui.
 
