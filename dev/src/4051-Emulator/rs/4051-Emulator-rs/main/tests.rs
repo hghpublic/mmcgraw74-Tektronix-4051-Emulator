@@ -199,6 +199,68 @@ fn speed_click_applies_after_previous_elapsed_interval() {
     assert_eq!(app.machine.registers().pc, 0x0100 + 2_264 + 4_528);
 }
 
+// What: Toggle Caps Lock from the native UI and sample the keyboard PIA input.
+// Why: The visible control must change the line consumed by the base ROM.
+#[test]
+fn caps_lock_checkbox_toggles_the_keyboard_tty_line() {
+    // Arrange: Select keyboard data registers and locate the rendered checkbox label.
+    let context = egui::Context::default();
+    let creation = eframe::CreationContext::_new_kittest(context.clone());
+    let mut machine = Machine::default();
+    machine.reset().unwrap();
+    machine.write_byte(0x87a9, 0x04).unwrap();
+    machine.write_byte(0x87ab, 0x04).unwrap();
+    let mut app = Tek4051App::new(&creation, machine);
+    let now = app.last_update;
+    let position = app_frame(&mut app, &context, now, vec![])
+        .into_iter()
+        .find_map(|(text, position)| (text == "Caps Lock").then_some(position))
+        .unwrap();
+
+    // Act: Turn the control on, sample the ROM-facing bit, then turn it off.
+    for pressed in [true, false] {
+        app_frame(
+            &mut app,
+            &context,
+            now,
+            vec![
+                Event::PointerMoved(position),
+                Event::PointerButton {
+                    pos: position,
+                    button: PointerButton::Primary,
+                    pressed,
+                    modifiers: Modifiers::NONE,
+                },
+            ],
+        );
+    }
+    app.machine.keyboard_press(b'B');
+    let caps_lock_on = app.machine.read_byte(0x87a8).unwrap();
+    app.machine.keyboard_release();
+    for pressed in [true, false] {
+        app_frame(
+            &mut app,
+            &context,
+            now,
+            vec![
+                Event::PointerMoved(position),
+                Event::PointerButton {
+                    pos: position,
+                    button: PointerButton::Primary,
+                    pressed,
+                    modifiers: Modifiers::NONE,
+                },
+            ],
+        );
+    }
+    app.machine.keyboard_press(b'B');
+    let caps_lock_off = app.machine.read_byte(0x87a8).unwrap();
+
+    // Assert: Each checkbox transition flips the Caps Lock bit in the key byte.
+    assert_eq!(caps_lock_on, 0x42);
+    assert_eq!(caps_lock_off, 0xc2);
+}
+
 // What: Encode a full display snapshot and report an inaccessible destination.
 // Why: Screen copies must preserve green intensities and surface file failures.
 #[test]

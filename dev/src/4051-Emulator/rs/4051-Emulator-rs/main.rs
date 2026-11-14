@@ -55,6 +55,7 @@ struct Tek4051App {
     display_revision: u64,
     keyboard_input: KeyboardInput,
     front_panel: FrontPanel,
+    caps_lock: bool,
     speed_index: usize,
     settings_error: Option<String>,
     last_modifiers: egui::Modifiers,
@@ -81,6 +82,7 @@ impl Tek4051App {
             display_revision,
             keyboard_input: KeyboardInput::default(),
             front_panel: FrontPanel::default(),
+            caps_lock: false,
             speed_index: 0,
             settings_error: None,
             last_modifiers: egui::Modifiers::NONE,
@@ -150,13 +152,16 @@ impl Tek4051App {
                     &mut self.speed_index,
                     &mut self.settings_error,
                 );
+                if ui.checkbox(&mut self.caps_lock, "Caps Lock").changed() {
+                    self.machine.toggle_caps_lock();
+                }
                 if let Some(error) = &self.runtime_error {
                     ui.colored_label(
                         egui::Color32::LIGHT_RED,
                         format!("Emulation stopped: {error}"),
                     );
                 } else {
-                    ui.label("Caps Lock, other panel controls, and storage are not connected.");
+                    ui.label("Start, pause, reset, and storage are not connected.");
                 }
             });
             if let Some(error) = &self.settings_error {
