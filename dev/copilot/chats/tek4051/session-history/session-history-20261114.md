@@ -156,3 +156,29 @@
 - The user selected a native Save As dialog. Implemented the Make Copy button and DisplayX output-A bit `0x20` falling-edge trigger, with ordered event-time framebuffer snapshots and an eight-copy queue. Added `rfd` for the native dialog and `image` PNG encoding; cancellation and errors are displayed. The modal dialog pauses emulation rather than adding its duration to CPU time.
 - Review identified that stopping the machine on queue overflow was too disruptive; excess copy requests are now counted and reported without stopping execution. The test review also requested event-time PNG and deterministic modal-time coverage; focused regressions were added. The native dialog and overwrite confirmation remain unverified; Rust 1.85 and other platforms were not tested.
 - Final validation passed: `cargo fmt --all -- --check`, `cargo test --locked -p tek4051-emulator --bin tek4051-emulator --test display --test host_runtime` (44 passed), `cargo clippy --locked -p tek4051-emulator --all-targets -- -D warnings`, `cargo build --locked -p tek4051-emulator`, and Typst compilation of the updated architecture and graded guide. The code reviewer confirmed its overflow finding resolved; the test reviewer confirmed the PNG and timing findings resolved and requested an assertion that the overflow warning is actually painted. That assertion was added, its focused test and strict Clippy passed, and the test reviewer confirmed the remaining finding resolved.
+
+## Migration status update
+
+- Reviewed the current graded guide and handoff: no grade exit gate is formally verified. The partial core and native UI can run one keyboard-entered BASIC regression, while GPIB, tape/import, and Auto Load are not implemented; native interaction and the reference baseline still need verification.
+- No emulator code changed or tests were run for this status assessment. The worktree was clean when checked.
+
+## Auto-acknowledgment request
+
+- The user asked to activate a mode that automatically acknowledges after a timeout. No available session tool provides that control; no mode was activated.
+- Checked the VS Code approvals documentation: Autopilot is selected by the user in the chat mode picker and automatically approves tools and answers blocking questions; the documentation does not specify a timeout-based acknowledgment.
+- Explained the documented sandbox controls: session Permissions > Sandboxing for terminal, host default `chat.agent.sandbox.enabled`, and `/sandbox policy` verification. Network access is allowed by default; sandboxing is separate from auto-approval and is not a VM boundary. No settings were changed.
+- Requested sandbox verification: the session's latest runtime guidance still reports an unsandboxed environment; process/environment inspection provided no positive sandbox evidence. Advised checking `/sandbox policy` for authoritative effective policy rather than treating settings or absent process markers as proof.
+- The user supplied the effective policy result: command sandboxing is disabled and commands run unrestricted. The client recommends `/sandbox enable`; activation has not yet been verified.
+- Investigated repeated ineffective `/sandbox enable`: the VS Code user setting already has `chat.agent.sandbox.enabled: "on"` and macOS 27.2.1 meets the documented prerequisite. No activation-error event or Agent Host wire log was found. The effective-policy/default mismatch is confirmed, but its cause is not; recommended testing a new session and checking its policy. No configuration was changed.
+- The user confirmed that a new chat starts with sandboxing enabled. The default works for new chats; the existing chat's ineffective enable command remains unexplained. Continue in the new sandboxed chat using the handoff; do not infer that this existing session became sandboxed.
+
+## Reviewing the handoff
+
+- Reviewed the handoff against the current package manifest, application entry/save paths, machine-bus constants, and recorded validation. Found stale future-tense UI dependency claims, overly broad unverified egui-integration wording, historical suite totals presented as current, and outdated constant ownership.
+- Recommended a concise current-state handoff with one scoped validation summary, explicit native-verification gaps, and ordered next actions; retain historical milestones in daily history. No emulator code changed or tests were run for this documentation review.
+
+## Consolidating the handoff
+
+- At the user's request, rewrote the handoff as a current-state summary with decisions, module ownership, compatibility boundaries, scoped validation, baseline/reference limitations, and ordered next actions. Removed superseded suite totals and future-tense UI claims; retained native verification gaps and session-specific sandbox caution.
+- Historical entries remain unchanged in daily history. No emulator code or configuration changed; no build or test rerun was needed for this Markdown-only edit.
+- Validated all 29 handoff links, checked diff whitespace, and confirmed both edited documents are not Git-ignored.
