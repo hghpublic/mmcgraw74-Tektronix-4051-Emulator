@@ -139,3 +139,9 @@
 - Added Auto Number and Step Program buttons using the web reference's codes `0x75` and `0x76` through the existing queued pointer path. Added separate-file egui/PIA tests for each button with and without Shift; native pointer input and actual program-control workflows remain unverified.
 - Validation passed: `cargo fmt --all -- --check`, `cargo test --locked -p tek4051-emulator --bin tek4051-emulator --test host_runtime` (34 passed), `cargo clippy --locked -p tek4051-emulator --all-targets -- -D warnings`, `cargo build --locked -p tek4051-emulator`, and Typst compilation of the updated architecture and graded guide. Temporary PDFs were removed.
 - Both Rust reviewers reported no actionable findings; the test reviewer also ran the full package suite (92 passed). External Git activity incorporated the Rust changes into HEAD `cf9b356`; the assistant did not stage or commit them.
+
+## Native special keyboard buttons
+
+- Added Home/Page, Rub Out, and Break buttons using the web reference's codes `0x6a`, `0x5f`, and `0x6b` through the existing queued pointer path. Added separate-file egui/PIA tests for each button with and without Shift; native pointer input and actual editing or interrupt behavior remain unverified.
+- Validation passed: `cargo fmt --all -- --check`, `cargo test --locked -p tek4051-emulator --bin tek4051-emulator --test host_runtime` (35 passed), `cargo clippy --locked -p tek4051-emulator --all-targets -- -D warnings`, `cargo build --locked -p tek4051-emulator`, and Typst compilation of the updated architecture and graded guide. Temporary PDFs were removed.
+- Both Rust reviewers reported no actionable findings; the code reviewer also ran the full package test suite (93 passed).
