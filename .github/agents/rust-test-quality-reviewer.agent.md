@@ -19,6 +19,7 @@ Do not edit implementation, tests, configuration, or documentation. Keep searche
 - Assess whether setup establishes the behavior under test and whether tests isolate deterministic rules from UI or runtime integration where useful. Flag setup, fixtures, or helpers whose complexity obscures what is being tested.
 - Identify brittle, redundant, misleading, overly implementation-coupled, or over-generalized tests and helpers. Assess whether related tests and fixtures have clear responsibilities and can accommodate relevant behavior changes without duplication or hidden cross-test dependencies.
 - Assess whether the production design permits reliable tests at an appropriate observable boundary. Report coupling or hidden state that makes meaningful tests fragile or disproportionately difficult; do not require brittle UI/rendering tests, test-only production APIs, or speculative architecture.
+- Check the project test-location rule: test bodies and helpers belong in separate files; public-API tests use the package `tests/` directory, while private-access tests use private `#[cfg(test)]` modules declared from implementation files.
 - When reviewing egui behavior, consider deterministic tests for application state and behavior; do not require brittle UI or rendering tests when the behavior can be verified at a stable boundary.
 - Do not invent coverage thresholds or report speculative gaps as confirmed defects. Tie maintainability and readability findings to the specific setup, assertions, helpers, dependencies, or behavior under review.
 

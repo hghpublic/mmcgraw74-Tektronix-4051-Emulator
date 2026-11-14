@@ -14,7 +14,7 @@ argument-hint: "Rust test file(s) or modules to update"
 
 ## Scope
 
-This skill covers Rust tests, including test modules and test helpers. For Rust implementation source, use `update-rust-code-comments`.
+This skill covers Rust tests, including test modules and test helpers. Follow the project test-location rule: keep test bodies and helpers in separate files, not implementation files. For Rust implementation source, use `update-rust-code-comments`.
 
 ## Comment Principles
 

@@ -30,6 +30,7 @@
 
 - Work in small, buildable increments and follow the existing project structure and conventions.
 - Add focused tests for observable behavior, important boundaries, and error paths. Prefer meaningful assertions over implementation-detail checks, and do not widen production visibility solely to facilitate tests.
+- Keep test bodies and helpers out of implementation files. Put public-API tests in the package `tests/` directory; put tests requiring private access in separate files declared as private `#[cfg(test)]` modules.
 - Run the existing formatter, linter, build, and test commands relevant to the change. Do not install tools or change dependencies unless required; report exact commands and limitations.
 - Use the Rust Code Quality Reviewer for Rust implementation changes and the Rust Test Quality Reviewer when tests are added or changed. Keep reviews focused on changed code and behaviorally relevant consumers, and report actionable evidence and remaining risks.
 
