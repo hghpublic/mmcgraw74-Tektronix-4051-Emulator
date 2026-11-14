@@ -26,7 +26,9 @@ The page returned HTTP 200 and loaded in the local browser. Startup, Start/Pause
 
 Observed user-facing boundaries are browser page load, front-panel clicks, host/panel keyboard events, GPIB dialog actions, file-picker import, tape-file selection, and Auto Load. The exact source handlers are cataloged in `tests/test-cases/test-cases.md`.
 
-## Existing tests and conventions
+## Test inventory at baseline capture
+
+The following inventory describes the 12 November 2026 capture, not the current repository. The `npm test` result refers to the inherited web-source package, not the repository-root workspace command. The newer root Playwright workspaces and separate Rust test files must be reconciled with this draft before it is frozen; see the graded migration guide for current status.
 
 - No web integration/E2E/regression test files were found.
 - `npm test` was run and failed as expected: `Error: no test specified` (exit 1).

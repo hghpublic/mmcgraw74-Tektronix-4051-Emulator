@@ -37,34 +37,36 @@
 ]
 
 #align(center)[
-  Log coverage: project review through a partial Phase 0 baseline and the initial deterministic machine core
+  Historical coverage: project review through the initial machine core and host timing adapter
   \
   Source history: `dev/copilot/chats/tek4051/session-history`
   \
   Rust implementation: `dev/src/4051-Emulator/rs/4051-Emulator-rs`
   \
-  Updated: 13 November 2026
+  Current status updated: 14 November 2026
 ]
 
 #outline(title: [Contents], depth: 2)
 
 = Purpose and current status
 
-This log records migration decisions, issues, fixes, and validation evidence for the Rust/egui port. It is cumulative: new decisions and issue outcomes should be appended as work proceeds. The web emulator and supplied assets remain the behavior reference and have not been modified.
+This log records migration decisions, issues, fixes, and validation evidence for the Rust/egui port. Its detailed milestones and validation record cover work through 13 November; later increments are recorded in the daily session history. Historical observations and test counts below are checkpoint evidence, not current inventory. The web emulator and supplied assets remain the behavior reference and have not been modified.
 
 Rust-owned ROM images live under `dev/src/4051-Emulator/rs/4051-Emulator-rs/roms/` as `base.bin`, `overflow.bin`, `backpack-left.bin`, `backpack-right.bin`, `romexp-left.bin`, and `romexp-right.bin`. The base and overflow image paths changed from their former `_rom` names without changing bytes. The left-backpack image is an exact 2 KiB extraction of the reference's `DERROML` array; the right-backpack image is the exact 8 KiB `DERROMR` array. The 64 KiB left- and right-expander images each concatenate all eight exact 8 KiB arrays returned by their respective reference functions.
 
-The current implementation includes a UI-independent CPU and machine core plus a separate host timing adapter. The core supports selected 8/16-bit instructions and addressing modes, reset/interrupt behavior, 32 KB RAM, immutable base, system-overflow, selector-4/5 left/right-backpack ROMs, selector-6/7 left/right ROM-expander slots, PIA control/data registers, keyboard signaling, board IRQ/NMI routing, display erase/ready signaling, and bounded instruction stepping. Without the host's initial display-ready notification, the ROM waits at `0xC6B4` with interrupts masked. Calling `display_ready()` releases that wait without changing CPU registers; startup executes selector-1 overflow code, probes ignored banks 2/3, reads both backpack headers and slot-0 headers from both expanders, then continues through base-ROM code. Within a 2,000,000-instruction bound after the right-expander probe, the normal startup trace reaches the observed keyboard routine at `0xC88A`; the host runtime now schedules keyboard refresh, CPU execution, display updates, and erase completion while the regression verifies that the real ROM records and releases an `A` key event. This does not establish complete boot. The JavaScript `DERROML` image contains 2 KiB although selector 4 is selected across an 8 KiB window; Rust maps the actual bytes at `0x8800..0x9000` and reports the remaining range as unsupported rather than inventing data. The JavaScript `DERROMR` image contains a complete 8 KiB of `0xFF`, which Rust maps read-only across `0x8800..0xA7FF`. Selector 6 maps all eight source-derived `BSXLSLOT1`–`BSXLSLOT8` images and selector 7 maps all eight `BSXRSLOT1`–`BSXRSLOT8` images read-only across the same window, selected by the register address field. Ignored banks retain the explicit read-only zero-byte mapping under DEC-007. Broader CPU differential coverage, peripherals, display rendering, and the egui application remain future work.
+The current implementation includes a UI-independent CPU and machine core plus a separate host timing adapter. The core supports selected 8/16-bit instructions and addressing modes, reset/interrupt behavior, 32 KB RAM, immutable base, system-overflow, selector-4/5 left/right-backpack ROMs, selector-6/7 left/right ROM-expander slots, PIA control/data registers, keyboard signaling, board IRQ/NMI routing, display erase/ready signaling, and bounded instruction stepping. Without the host's initial display-ready notification, the ROM waits at `0xC6B4` with interrupts masked. Calling `display_ready()` releases that wait without changing CPU registers; startup executes selector-1 overflow code, probes ignored banks 2/3, reads both backpack headers and slot-0 headers from both expanders, then continues through base-ROM code. Within a 2,000,000-instruction bound after the right-expander probe, the normal startup trace reaches the observed keyboard routine at `0xC88A`; the host runtime schedules keyboard refresh, CPU execution, display updates, and erase completion while the regression verifies that the real ROM records and releases an `A` key event. This does not establish complete boot. The JavaScript `DERROML` image contains 2 KiB although selector 4 is selected across an 8 KiB window; Rust maps the actual bytes at `0x8800..0x9000` and reports the remaining range as unsupported rather than inventing data. The JavaScript `DERROMR` image contains a complete 8 KiB of `0xFF`, which Rust maps read-only across `0x8800..0xA7FF`. Selector 6 maps all eight source-derived `BSXLSLOT1`–`BSXLSLOT8` images and selector 7 maps all eight `BSXRSLOT1`–`BSXRSLOT8` images read-only across the same window, selected by the register address field. Ignored banks retain the explicit read-only zero-byte mapping under DEC-007.
+
+The logical display and native eframe shell are implemented in part, including host and panel input, speed/granularity settings, and screen-copy Save As. One keyboard-entered BASIC program is tested at the machine/runtime boundary. Native interaction, broader CPU differential coverage, GPIB and other peripherals, and option-ROM program execution remain open. No grade exit gate is formally verified; the current design and graded guide describe the implementation and remaining evidence.
 
 #table(
   columns: (1.1fr, 1.2fr, 2.7fr),
   stroke: 0.5pt,
   [*Area*], [*Status*], [*Current evidence*],
   [Platform and persistence], [Decided], [Native desktop; tape storage follows the reference's apparent in-memory behavior],
-  [CPU core], [In progress], [61 tests pass; selected instruction families, interrupt vectors, bounded startup/input, and host timing execute],
+  [CPU core], [In progress], [Selected instruction families, interrupt vectors, bounded startup/input, and host timing execute; broader differential coverage is open],
   [Machine board], [In progress], [32 KB RAM, base/overflow/backpack/left/right-expander ROMs, explicit ignored banks, PIA/keyboard/interrupt and display signaling; host timing is implemented],
   [Parity baseline], [In progress], [Program run, control cycles, GPIB registry, file import, and in-memory storage evidence captured; printer and several input/peripheral paths remain],
-  [UI], [Not started], [No binary target or egui application],
+  [UI], [In progress], [Native binary renders the display, accepts host/panel input, and offers screen-copy Save As; physical interaction remains unverified],
 )
 
 = Decisions
@@ -73,7 +75,7 @@ The current implementation includes a UI-independent CPU and machine core plus a
 
 *Decision:* port the emulator to a native desktop application using egui. The user selected this target.
 
-*Effect:* keep the machine and CPU independent of egui. The core is a library; eframe integration and file-dialog dependencies remain for the UI phase.
+*Effect:* keep the machine and CPU independent of egui. The package now has a core library and eframe binary; screen-copy Save As is implemented, while other native file and printer presentation decisions remain open.
 
 == DEC-002 - Tape storage behavior
 
@@ -163,7 +165,7 @@ Review identified gaps in arithmetic carry/overflow cases, logical-operation H/C
 
 *Status: Open; expected at this migration stage.*
 
-The CPU supports only a subset of instructions and addressing modes. The base-ROM reset path now reaches a repeatable loop at `0xC6B4` under default PIA input within a 100,000-instruction budget. Additional instruction coverage, PIA interrupt/keyboard behavior, peripherals, and the egui app remain incomplete.
+The CPU supports only a subset of instructions and addressing modes. Without host display readiness, the bounded base-ROM reset path reaches a repeatable loop at `0xC6B4`. Subsequent work added keyboard/interrupt handling and an egui shell, but additional instruction coverage, board behavior, peripherals, and native interaction verification remain open.
 
 == ISS-010 - Banked ROM integration is incomplete
 
@@ -191,21 +193,21 @@ Keyboard press/release and active-low modifier state now feed the U461 PIA input
 
 == ISS-014 - Startup display readiness was missing
 
-*Status: Root cause identified; board handshake implemented, complete startup still blocked by ISS-010.*
+*Status: Root cause identified and board handshake implemented; the ROM boundary recorded in ISS-010 has since been integrated, but complete boot remains unverified.*
 
-The loop at `0xC6B4` reads DisplayX port A (`0x8794`), XORs `0x04`, and tests `0x0C`: it waits for DRBUSY-0 high and VPULSE-1 low. The reference's `execute_start()` sets input bit `0x04`; `HostRuntime::start()` now does the same with `display_ready()`. A data-selected output-A bit-`0x10` falling edge clears readiness and latches `display_erase_pending()`. The host completes the erase with `display_ready()`, preserving unrelated inputs and clearing the pending request. `HostRuntime` applies the reference's 500 ms delay from elapsed host time; the deterministic core does not substitute instruction counts for elapsed time or auto-complete erases. Display rendering and full startup remain incomplete.
+The loop at `0xC6B4` reads DisplayX port A (`0x8794`), XORs `0x04`, and tests `0x0C`: it waits for DRBUSY-0 high and VPULSE-1 low. The reference's `execute_start()` sets input bit `0x04`; `HostRuntime::start()` now does the same with `display_ready()`. A data-selected output-A bit-`0x10` falling edge clears readiness and latches `display_erase_pending()`. The host completes the erase with `display_ready()`, preserving unrelated inputs and clearing the pending request. `HostRuntime` applies the reference's 500 ms delay from elapsed host time; the deterministic core does not substitute instruction counts for elapsed time or auto-complete erases. Logical display rendering was added later; full startup and native presentation parity remain unverified.
 
 == ISS-015 - Empty-bank startup probes
 
-*Status: Resolved for the accepted typed-byte policy; complete boot remains open.*
+*Status: Resolved for the accepted typed-byte policy; complete boot remains open. The trace described below is an earlier checkpoint, superseded by ISS-018 and ISS-019.*
 
-The original trace stopped at bank 2 after 102,553 completed instructions. DEC-007 now defines zero-byte reads for ignored banks 2/3; the ROM's `LDX` header probe at `0xAA8F` observes zero for both and continues normally. Tests execute the actual word-load instruction and verify both ignored-bank probes in the real startup path. The startup regression now also requires the selector-4 header probe to succeed before it observes the next explicit error, selector 5 at `0x8800`. The trace still has no erase request or IRQ enable. The right-backpack image and further normal-startup behavior remain unimplemented.
+The original trace stopped at bank 2 after 102,553 completed instructions. DEC-007 now defines zero-byte reads for ignored banks 2/3; the ROM's `LDX` header probe at `0xAA8F` observes zero for both and continues normally. Tests execute the actual word-load instruction and verify both ignored-bank probes in the real startup path. At the later selector-4 checkpoint, the startup regression required its header probe before observing the next explicit error, selector 5 at `0x8800`; the trace had no erase request or IRQ enable. The right-backpack and subsequent normal-startup work were completed later, as recorded in ISS-010 and ISS-019.
 
 == ISS-016 - Left backpack payload is shorter than its selected window
 
-*Status: Supplied payload mapped; the uncovered tail remains an explicit error.*
+*Status: Supplied payload mapped; the uncovered tail remains an explicit error. The selector-5 startup stop below is an earlier checkpoint, superseded by ISS-010 and ISS-019.*
 
-The web board selects `DERROML` for selector 4 across `0x8800..0xA7FF`, but the reference `Uint8ClampedArray` literal contains 2,048 bytes. Rust stores the exact payload and maps it at `0x8800..0x9000`; reads elsewhere in the selected window return `UnsupportedRomBank` rather than fabricated zeroes. The image fingerprint is `SHA-256 cb16cccbf9f9c45ed2e655e786642c07ebf253caff407912f574af145d59624f` (`FNV-1a-64 0xb1dc383ab2158059`). The real startup trace now passes the header probe and stops at selector 5 / `0x8800`.
+The web board selects `DERROML` for selector 4 across `0x8800..0xA7FF`, but the reference `Uint8ClampedArray` literal contains 2,048 bytes. Rust stores the exact payload and maps it at `0x8800..0x9000`; reads elsewhere in the selected window return `UnsupportedRomBank` rather than fabricated zeroes. The image fingerprint is `SHA-256 cb16cccbf9f9c45ed2e655e786642c07ebf253caff407912f574af145d59624f` (`FNV-1a-64 0xb1dc383ab2158059`). At this checkpoint, the real startup trace passed the header probe and stopped at selector 5 / `0x8800`.
 
 = Migration milestones
 
@@ -219,7 +221,7 @@ Configured the root Cargo package and implemented a testable CPU foundation with
 
 == 2026-11-12 - CPU expansion and review fixes
 
-Expanded the decoder with selected immediate A/B arithmetic and logical operations, conditional branches, BSR, and RTS. Fixed the RTS stack-read error path, expanded coverage for flags and boundary cases, and corrected the branch wrap test fixture. Current validation passes 24 focused CPU tests.
+Expanded the decoder with selected immediate A/B arithmetic and logical operations, conditional branches, BSR, and RTS. Fixed the RTS stack-read error path, expanded coverage for flags and boundary cases, and corrected the branch wrap test fixture. At this checkpoint, 24 focused CPU tests passed.
 
 == 2026-11-12 - Phase 1 machine-core increment
 
@@ -229,7 +231,7 @@ Added direct, indexed, and extended 8-bit operations, selected 16-bit and unary 
 
 Pinned the web reference to revision `b33e20fb3ef41a1db114b602a29a9ba8ce3fdb48`, recorded the local static-server launch command, and copied the supplied `prog.txt` byte-for-byte into the Rust package's draft `tests/test-cases/testdata/inputs/` fixtures. In a real local browser, verified startup, Start/Pause/Reset, speed/scaling/granularity/audio control cycles, GPIB default devices plus add/remove and duplicate-address behavior, tape import/save/select, the 12-point vector program, Auto Load with and without a tape file, and storage loss after page reload. The no-file Auto Load screen reports `NO PROGRAM FOUND - MESSAGE NUMBER 59`; the successful vector display metrics are recorded in the draft baseline fixture.
 
-The browser logged the existing malformed select/input warning. `npm test` exits 1 with `Error: no test specified`. The user deferred the external test environment-mode choice; the decision table records `mock` provisionally with zero dependency rows. The baseline bundle remains a draft because printer output, physical host-key input, complete display-mode captures, and GPIB byte/EOI transcripts were not verified. No inherited web source or asset was modified.
+The browser logged the existing malformed select/input warning. At this checkpoint, the inherited web-source package's `npm test` exited 1 with `Error: no test specified`; the newer repository-root workspaces were added later. The user deferred the external test environment-mode choice; the decision table records `mock` provisionally with zero dependency rows. The baseline bundle remains a draft because printer output, physical host-key input, complete display-mode captures, and GPIB byte/EOI transcripts were not verified. No inherited web source or asset was modified.
 
 == 2026-11-12 - Vector display-granularity captures
 
@@ -316,20 +318,20 @@ The Rust Test Quality Reviewer identified an off-by-one issue in the bounded sea
 
 == ISS-020 - Host-owned execution and timing adapter
 
-*Status: Implemented in `host_runtime.rs`; no egui application is connected yet.*
+*Status: Implemented in `host_runtime.rs` and connected to the native application. The following paragraph records the original adapter checkpoint.*
 
-`HostRuntime` owns elapsed-time accounting outside `Machine`. `start()` signals initial display readiness; each 10 ms deadline runs the CPU batch before the keyboard interrupt callback, matching the reference's interval registration order. A 100 ms deadline is reported to the host for display phosphor updates. When `display_erase_pending()` is observed, the runtime calls `display_ready()` after 500 ms. The speed factor follows the reference formula, with the default `x1` budget of 2,264 instructions per interval. Integration tests cover the 10/100/500 ms boundaries, `x2` instruction throughput, invalid speed factors, and propagated machine-bus errors. The host still needs to connect these events to an egui update loop and display renderer.
+`HostRuntime` owns elapsed-time accounting outside `Machine`. `start()` signals initial display readiness; each 10 ms deadline runs the CPU batch before the keyboard interrupt callback, matching the reference's interval registration order. At this checkpoint, a 100 ms deadline was reported to the host for display phosphor updates. When `display_erase_pending()` is observed, the runtime calls `display_ready()` after 500 ms. The speed factor follows the reference formula, with the default `x1` budget of 2,264 instructions per interval. Integration tests cover the 10/100/500 ms boundaries, `x2` instruction throughput, invalid speed factors, and propagated machine-bus errors. Subsequent work added the logical display and connected the native egui update loop.
 
 On a machine execution error, the runtime returns any due display-refresh events, stops, and requires the host to reset the machine and create a new runtime. `cargo fmt --all -- --check`, locked check/build/test (61 passed: 32 CPU + 24 machine + 5 runtime), and strict all-target Clippy pass. Both Rust reviewers report no remaining findings.
 
 == Machine, bus, and PIA modules
 
-The CPU-facing `Machine` coordinator remains in `machine.rs`; the `MemoryBus` implementation, memory map, I/O decode, keyboard bus state, and bus error are in `machine_bus.rs`; PIA identifiers and register behavior are in `pia.rs`. The public `machine::` paths for PIA types, keyboard modifiers, and `MachineBusError` remain available through re-exports. This extraction changes organization only; all 55 Rust tests pass, strict Clippy passes, and the Rust Code Quality Reviewer found no issues.
+The CPU-facing `Machine` coordinator remains in `machine.rs`; the `MemoryBus` implementation, memory map, I/O decode, keyboard bus state, and bus error are in `machine_bus.rs`; PIA identifiers and register behavior are in `pia.rs`. The public `machine::` paths for PIA types, keyboard modifiers, and `MachineBusError` remain available through re-exports. At the extraction checkpoint, 55 Rust tests and strict Clippy passed, and the Rust Code Quality Reviewer found no issues.
 
 = Open work and next step
 
 - Complete the Grade 0 reference corpus: character-size rendering, printer output, physical host keyboard input, and GPIB byte/EOI transcripts. Vector rendering is now captured under all three granularity settings.
 - Revisit the direct file-load helper and empty-file import only if the user authorizes changes to inherited web behavior; otherwise preserve the observations as migration constraints.
-- Connect `HostRuntime` to the native egui update loop and display renderer, preserving its 10 ms CPU/keyboard, 100 ms display-update, and 500 ms erase-completion behavior. Full option-ROM program coverage remains Phase 4.
-- Build the native egui front panel and then port GPIB, storage, and remaining peripherals.
+- Verify the native egui display/input integration and screen-copy Save As interaction; preserve the runtime's 10 ms CPU/keyboard, 100 ms display-refresh, and 500 ms erase-completion behavior. Full option-ROM program coverage remains Phase 4.
+- Complete the remaining front-panel/lifecycle controls, then port GPIB, storage, Auto Load, and remaining peripherals.
 - Re-run the parity checklist against the web reference and document any intentional divergence before sign-off.

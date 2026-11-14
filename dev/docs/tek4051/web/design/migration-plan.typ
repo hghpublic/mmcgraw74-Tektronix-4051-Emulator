@@ -45,7 +45,7 @@
   \
   Plan basis: reviewed source, `design.typ`, and `graded-migration-guide.typ`
   \
-  Date: 12 November 2026
+  Updated: 14 November 2026
 ]
 
 #outline(title: [Contents], depth: 2)
@@ -56,7 +56,11 @@ This plan sequences the port of the reviewed Tektronix 4051 web emulator to Rust
 
 The root manifest is a virtual workspace with resolver 3. The member manifest at `dev/src/4051-Emulator/rs/4051-Emulator-rs/Cargo.toml` defines the package and `[lib] path = "lib.rs"`. Integration tests are automatically discovered under the member's `tests/` directory. Root and member commands share the repository-root lockfile and build-output directory.
 
-The Cargo manifest is the repository-root `Cargo.toml`; Rust implementation files belong under `dev/src/4051-Emulator/rs/4051-Emulator-rs`. The native target is confirmed. The UI-independent Rust core includes selected 8/16-bit operations and addressing modes, base/system-overflow ROM mapping, selector-4/5 backpack payloads, all eight slots of both selector-6/7 expanders, explicit ignored-bank behavior, RAM, PIA registers, keyboard and modifier state, reference-compatible board IRQ/NMI routing, display erase/ready signaling, and bounded instruction stepping. The separate `HostRuntime` schedules CPU and keyboard callbacks every 10 ms, reports display updates every 100 ms, and completes display erase after 500 ms; 61 tests pass. Without the host's initial `display_ready()` call, a bounded 100,000-instruction run waits at `0xC6B4` with interrupts masked. `HostRuntime::start()` supplies readiness; normal startup then reaches the keyboard routine at `0xC88A` within 2,000,000 instructions. Explicit keyboard interrupt ticks let the real ROM record an `A` press and clear key-down on release without CPU-state overrides. This does not establish complete boot or egui integration. Selector 4's source image is 2 KiB in an 8 KiB selector window, so Rust reports the uncovered tail as unsupported. Selectors 2/3 retain their explicitly documented read-only zero-byte mapping; other unsupported mappings remain errors. Broader CPU coverage, peripherals, full option-ROM program coverage, display rendering, and the egui application remain incomplete.
+The UI-independent core implements selected MC6800 operations, RAM, PIAs, keyboard/interrupt signaling, display modeling, and bounded stepping. It maps the base/system-overflow ROMs, both backpack payloads, and all eight slots of both ROM expanders. Selector 4's source image is 2 KiB in an 8 KiB window, so Rust reports its uncovered tail as unsupported; selectors 2/3 use the documented read-only zero-byte mapping within the bank window, and other unsupported mappings remain errors.
+
+`HostRuntime` schedules CPU and keyboard callbacks every 10 ms, display refresh every 100 ms, and erase completion after 500 ms. Without initial `display_ready()`, a bounded reset run waits at `0xC6B4`; `HostRuntime::start()` supplies readiness. A bounded startup trace reaches the ROM keyboard routine at `0xC88A`, and a separate machine/runtime regression enters `10 PRINT 1` and `RUN` and compares its stored-pixel mask with the web reference. These checks do not establish complete boot, physical input, or general BASIC compatibility.
+
+The native eframe application presents the display, translates host and panel input, exposes speed and granularity controls, and saves screen copies through the selected native Save As dialog. Native interaction, overwrite confirmation, and presentation parity remain unverified. GPIB devices, tape storage/import, Auto Load, printer, audio, and lifecycle controls remain open. No phase exit gate has been formally verified; see `graded-migration-guide.typ` for current grade status and evidence.
 
 The plan's gates align with `graded-migration-guide.typ`. The user selected native desktop and matching the reference's apparent in-memory tape behavior. No calendar durations are assigned; a vector-program baseline is now captured, but peripheral evidence remains incomplete.
 
@@ -109,11 +113,11 @@ Phases 2 and 3 may proceed as separate work streams after the machine/GPIB inter
 
 *Work items:*
 
-- P1.1 Configure repository-root `Cargo.toml` as a virtual workspace with its member package manifest under `dev/src/4051-Emulator/rs/4051-Emulator-rs`. Keep one package with a testable core library and a future application entry point; add further member crates only when justified. Preserve root-level Cargo commands and automatic member test discovery.
+- P1.1 Maintain repository-root `Cargo.toml` as a virtual workspace with the member package manifest under `dev/src/4051-Emulator/rs/4051-Emulator-rs`. The package has a testable core library and native binary; add further member crates only when justified. Preserve root-level Cargo commands and automatic member test discovery.
 - P1.2 Add the minimum dependencies needed for the selected target. Keep UI, file dialogs, and platform-specific features out of the core library.
 - P1.3 Implement MC6800 registers, instructions, flags, addressing modes, reset and interrupt behavior, and fixed-width memory operations.
 - P1.4 Implement the 4051 board memory map, 32 KB RAM, base ROM mapping, PIA registers/signals, keyboard input state, display erase/ready handshakes, and machine interrupt/control behavior. The host signals initial display readiness and acknowledges erase completion; the deterministic core must not guess host elapsed time. Ignored selectors 2/3 now explicitly read zero only in `0x8800..0xA7FF`; genuinely unsupported mappings remain errors.
-- P1.5 Integrate the existing base ROM data, selector-1 system overflow ROMs U101/U201 (`ROM747`/`ROM748`), selector-4/5 left/right backpack images (`DERROML`/`DERROMR`), and selector-6 left ROM-expander slots as immutable compatibility input. Check expected lengths and stable digests; do not edit the web source ROM. The 2 KiB left-backpack image maps read-only at `0x8800..0x8FFF` with its uncovered selector window explicit as errors. The right-backpack image is the exact 8 KiB reference payload, currently all `0xFF`, and maps read-only over `0x8800..0xA7FF`. Selector 6 maps the eight exact 8 KiB `BSXLSLOT1`–`BSXLSLOT8` images read-only across that window, selected by the bank register's low three address bits. Startup probes both backpack headers and the first expander-slot header, then reaches selector 7. Full right-expander and option-ROM program coverage remains Phase 4.
+- P1.5 Preserve the integrated base ROM, selector-1 system overflow ROMs U101/U201 (`ROM747`/`ROM748`), selector-4/5 backpack images (`DERROML`/`DERROMR`), and selector-6/7 left/right expander slots as immutable compatibility input. Check expected lengths and stable digests; do not edit the web source ROM. Selector 4 maps its exact 2 KiB payload read-only at `0x8800..0x8FFF` and reports the uncovered tail as errors; selector 5 maps the exact 8 KiB payload, currently all `0xFF`, across `0x8800..0xA7FF`. Selectors 6 and 7 each map eight exact 8 KiB slots by the low three address bits. Startup probes both backpack headers and the first slot header of each expander. Representative option-ROM program execution remains Phase 4.
 - P1.6 Add focused CPU and board tests, then compare deterministic reset, instruction, memory, PIA, and interrupt traces against Phase 0 observations.
 - P1.7 Expose a bounded, deterministic machine-step API that can later be called from the egui frame loop.
 
@@ -151,6 +155,7 @@ Phases 2 and 3 may proceed as separate work streams after the machine/GPIB inter
 - P3.5 Add egui storage and GPIB management panels, including selection, save/delete/clear, device add/remove, overwrite confirmation, and visible success/error results.
 - P3.6 Test GPIB transcripts, EOI endings, storage command behavior, malformed files/archives, cancellation, and byte-for-byte import/export round trips.
 - P3.7 Run the documented `FIND@5`, `OLD@5`, `RUN` flow using a supplied program and test multiple storage devices.
+- P3.8 Implement and test Auto Load's reference command sequence, including the missing-program outcome and speed-dependent synthetic-key timing.
 
 *Dependencies:* Phase 1 machine/GPIB contracts; Phase 0 file-format and persistence decisions. Core GPIB/storage work can proceed alongside Phase 2 presentation work if the machine interface is stable.
 
@@ -201,11 +206,11 @@ Phases 2 and 3 may proceed as separate work streams after the machine/GPIB inter
   [End-to-end parity and delivery checks], [5], [Completed feature matrix and passing Rust validation],
 )
 
-= Decisions to close before implementation
+= Decisions and open prerequisites
 
-- *Target platform:* native desktop using egui; eframe and file-dialog dependencies remain to be selected for the UI phase.
+- *Target platform:* native desktop using egui and eframe. Screen copy uses the selected native Save As dialog; remaining file-dialog and printer-presentation choices are open.
 - *Storage reload persistence:* the user selected the inspected in-memory reference behavior; revisit only if runtime evidence contradicts it.
-- *Cargo target layout:* use the established root manifest and implementation directory; choose the smallest package structure compatible with the target.
-- *Reference baseline:* record a runnable source revision and representative program/data corpus before using outcomes as a hard parity gate.
+- *Cargo target layout:* use the established root workspace and member library/binary; add packages only when justified.
+- *Reference baseline:* complete and freeze the pinned draft and representative corpus before using it as a hard parity gate.
 
-The previous `npm test` command is a placeholder rather than a useful regression suite (`package.json:6-11`). Do not use it as evidence that the source behavior is validated. The Rust test plan should provide the missing deterministic checks at the machine, display, GPIB, storage, and application layers.
+The inherited web-source `package.json` has a placeholder `npm test`; repository-root `npm test` instead runs the newer Playwright workspaces. Record their coverage and skips as reference evidence, not proof of Rust parity. Rust still needs deterministic checks at the machine, display, GPIB, storage, and application layers.

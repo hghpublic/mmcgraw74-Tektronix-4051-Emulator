@@ -146,7 +146,7 @@ Native GPIB routing and devices, tape storage/import, Auto Load, printer, audio,
 - *Display model:* the machine bus translates display PIA accesses into vector, cursor, and character-dot operations on `DisplayModel`. It owns phosphor persistence/decay semantics and exports an immutable green-channel framebuffer suitable for egui painting or texture upload.
 - *Peripheral layer, planned:* a typed GPIB device interface with Loader, RTC, tape storage, and Printer implementations. Device addressing, byte streams, EOI behavior, and error responses are core contracts.
 - *Storage model and codecs, planned:* numbered file records, header fields, binary content, Flash Drive filename parsing, and archive encoding/decoding live outside UI code. UI file pickers and filesystem paths are adapters.
-- *egui application:* owns the implemented presentation, settings, and input adapters; dialogs, audio preferences, and lifecycle controls remain planned. It sends operations to the machine and presents resulting state rather than directly editing CPU or PIA registers.
+- *egui application:* owns the implemented presentation, settings, input adapters, and screen-copy Save As dialog; storage dialogs, audio preferences, and lifecycle controls remain planned. It sends operations to the machine and presents resulting state rather than directly editing CPU or PIA registers.
 - *Immutable compatibility assets:* port the existing base/option ROM bytes as data without editing the inherited web assets. Verify lengths and stable digests in tests before changing how they are packaged.
 
 == Frame and event flow
@@ -174,6 +174,6 @@ The draft baseline captures startup, control settings, GPIB registry changes, ta
 
 The `keyboard_entered_basic_program_matches_reference_display` Rust test enters `10 PRINT 1` and `RUN` through the machine/runtime API and compares a stored-pixel mask with the web reference. It does not exercise physical keyboard input, exact pixel intensities, storage loading, or general BASIC compatibility. Native editor workflows and option-ROM programs also remain unverified.
 
-The selected native target still needs decisions and implementations for file dialogs and printer presentation. Confirm the deferred baseline environment-mode choice before freezing. Explicitly document any intentional user-visible deviation, including the native pointer timing and error handling, rather than describing it as reference parity.
+The selected native target still needs decisions and implementations for storage file dialogs and printer presentation. Screen-copy Save As is implemented but native interaction and overwrite confirmation remain unverified. Confirm the deferred baseline environment-mode choice before freezing. Explicitly document any intentional user-visible deviation, including the native pointer timing and error handling, rather than describing it as reference parity.
 
 The companion `graded-migration-guide.typ` turns these findings into staged completion gates. A grade is a migration stage, not a quality score; passing a grade requires its evidence, not merely compiling the current code.
