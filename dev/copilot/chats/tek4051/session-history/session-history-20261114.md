@@ -202,3 +202,8 @@
 
 - Added a Caps Lock checkbox to the eframe shell and connected changes to the machine's existing keyboard TTY toggle. A focused private app test clicks the checkbox on and off and verifies the keyboard PIA key byte reflects each state; physical host Caps Lock events remain unwired.
 - Updated the architecture design, graded migration guide, and handoff to reflect the UI control and remaining limitations. Both Typst documents compiled; `cargo fmt --all -- --check`, the focused checkbox test, `cargo test --locked -p tek4051-emulator` (101 passed), strict all-target Clippy, `cargo build --locked -p tek4051-emulator`, and `git diff --check` passed. Both Rust reviewers reported no findings; the test reviewer noted the assertion validates machine-visible state rather than rendered checkbox appearance.
+
+## Adding native Start/Pause controls
+
+- Added Start/Pause controls that match the web reference's initial paused state. `HostRuntime` pause/resume freezes callbacks, discards paused wall time, restarts callback deadlines, and resumes a pending erase delay from the next running advance. Reset and recovery controls remain unimplemented.
+- Added runtime and eframe tests for paused CPU/keyboard/display callbacks, fresh deadlines after resume, button state, paused erase behavior, and refusal to restart after a machine error. `cargo fmt --all -- --check`, the focused runtime/UI tests, `cargo test --locked -p tek4051-emulator` (104 passed), strict all-target Clippy, `cargo build --locked -p tek4051-emulator`, `git diff --check`, and both Typst compilations passed. The Code Quality Reviewer found no issues; the Test Quality Reviewer confirmed its runtime-error coverage finding resolved.

@@ -1,6 +1,6 @@
 # Tektronix 4051 Emulator Handoff
 
-Updated: 14 November 2026 (Caps Lock UI increment).
+Updated: 14 November 2026 (Start/Pause UI increment).
 
 ## Start here
 
@@ -29,7 +29,7 @@ The root [Cargo.toml](../../../../Cargo.toml) is a virtual workspace using resol
 | CPU and machine | Selected MC6800 8/16-bit operations/addressing modes, branches, stack operations, SWI/RTI, IRQ/NMI, RAM, PIAs, keyboard state, and bounded stepping. Base/system-overflow ROMs, both backpacks, and all eight slots of both ROM expanders are mapped. | Complete CPU/board coverage, GPIB handshake, differential traces, and representative option-ROM program execution remain open. |
 | Startup and BASIC | Bounded tests reach the base-ROM keyboard routine at `0xC88A` and observe real-ROM key press/release handling without CPU register overrides. A runtime test enters `10 PRINT 1` and `RUN` through the Tek keyboard API and compares the stored-pixel mask with the web reference. | This proves one machine/runtime BASIC workflow, not native physical input, general BASIC compatibility, or full boot/display parity. |
 | Display and timing | A 1046-by-830 green-channel framebuffer models vectors, character dots, fine/coarse/mixed granularity, phosphor refresh, and erase flash/completion. `HostRuntime` schedules CPU/keyboard callbacks every 10 ms, refresh every 100 ms, and erase completion after 500 ms. | Native presentation, aspect-ratio/scaling parity, responsiveness, and real-time speed calibration need verification. |
-| Native shell and input | eframe renders changed display revisions and shows errors. Host key translation and Shift/Control input are wired, including focus-loss cleanup. Buttons cover speed x1 through x100, ten Shift-selectable user keys, five line-editor keys, Auto Number, Step Program, Home/Page, Rub Out, and Break. A Caps Lock checkbox toggles the machine's keyboard line. Synthetic tests exercise mappings, event ordering, timing, and selected ROM delivery. | Physical keyboard/pointer smoke tests and actual editor/program-control workflows remain unverified. Physical Caps Lock key input, start/pause/reset, status indicators, and other remaining controls are incomplete. Machine execution errors stop the runtime; no UI recovery controls exist yet. |
+| Native shell and input | eframe starts paused, matching the web's explicit Start control. Start/Pause controls freeze scheduled callbacks and restart interval timing on resume. Host key translation, Shift/Control input, Caps Lock UI, and the clickable panel keys are wired and covered by synthetic tests. | Physical keyboard/pointer smoke tests and actual editor/program-control workflows remain unverified. Physical Caps Lock key input, reset, status indicators, and other remaining controls are incomplete. Machine execution errors stop the runtime; no UI recovery controls exist yet. |
 | Screen copy | MAKE COPY and DisplayX output-A bit `0x20` falling edges capture snapshots. The app writes full-resolution RGBA PNG via `rfd` and `image`; it displays success, cancellation, and errors and excludes modal time from emulation. Tests cover event-time pixels through PNG decode, timing, erase/copy ordering, overflow, and painted overflow warnings. | Native Save As interaction and overwrite confirmation have not been manually verified. |
 | Storage and peripherals | Immutable ROM mappings are available. | Native GPIB routing/devices, Loader/RTC/tape workflows, storage/import/export, Auto Load, printer, and UI beep/click audio are not implemented. Imported flash-drive program sets therefore remain unavailable in Rust. |
 
@@ -48,11 +48,12 @@ The root [Cargo.toml](../../../../Cargo.toml) is a virtual workspace using resol
 - Board interrupt routing deliberately uses raw PIA status flags without enable gating, matching the web reference. CPU IRQ masking, NMI priority, held-source suppression, and rearming are tested.
 - ROM selectors 2/3 return read-only zero bytes only within `0x8800..0xA7FF`, normalizing the reference's undefined bytes; this is not general JavaScript undefined/NaN or floating-bus parity. Selector 1 maps `0x8800..0x97FF`; selector 4 maps its exact 2 KiB payload at `0x8800..0x8FFF`. Their uncovered tails remain explicit errors, not fallback ROM/zero mappings.
 - Pointer presses and intervening releases have a deliberate 100 ms minimum, unlike the web's immediate transitions. Rapid taps are queued and source ordering/modifiers preserved. This needs native interaction validation.
+- Pausing stops CPU, keyboard callback, display refresh, and erase-completion scheduling. Resuming starts fresh timing intervals; a pending erase delay begins again on the next running advance.
 - Screen-copy buffering retains up to eight ordered event-time snapshots. Excess requests are counted and visibly reported without stopping emulation. Native destination choice and modal pause differ from the web's automatic download.
 
 ## Latest recorded validation
 
-Validation for the native Caps Lock UI increment on 14 November:
+Validation for the native Start/Pause UI increment on 14 November:
 
 ```sh
 cargo fmt --all -- --check
@@ -62,9 +63,9 @@ cargo build --locked -p tek4051-emulator
 git diff --check
 ```
 
-- The full package test command passed **101 tests**: 35 binary, 32 CPU, 4 display, 6 host-runtime, and 24 machine tests.
+- The full package test command passed **104 tests**: 37 binary, 32 CPU, 4 display, 7 host-runtime, and 24 machine tests.
 - Strict all-target Clippy and the locked package build passed. Both updated Typst documents compiled; temporary PDFs were removed.
-- Both required Rust reviewers reported no findings for this increment.
+- The Rust Code Quality Reviewer reported no findings. The Test Quality Reviewer requested app-level runtime-error coverage; the regression was added and the reviewer confirmed it resolves the finding.
 - Rust 1.85 compatibility of the current dependency graph and non-macOS platforms have not been tested.
 - An earlier native shell screenshot verified window presentation, not input or display parity. A later launch confirmed window discovery, then exited with status 0; do not assume an emulator process is still running.
 - Latest recorded root `npm test` result: **26 passed, 6 explicit skips**. This is web-reference evidence, not Rust parity certification.
