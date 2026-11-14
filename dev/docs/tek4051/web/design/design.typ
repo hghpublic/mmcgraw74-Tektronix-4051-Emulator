@@ -127,17 +127,17 @@ The project README explicitly says R12 MUSIC and SOUND commands do not play on t
   [#raw("machine.rs")], [Owns CPU and bus; samples interrupt sources and exposes bounded stepping, keyboard, PIA, and display operations.],
   [#raw("machine_bus.rs"), #raw("pia.rs"), #raw("rom.rs")], [Map RAM, base and selected option ROM payloads, PIA registers, keyboard and display signals, and board interrupt flags.],
   [#raw("display.rs")], [Models the logical framebuffer, PIA-driven plotting, granularity, phosphor refresh, and erase transitions.],
-  [#raw("host_runtime.rs")], [Advances caller-supplied elapsed time through CPU and keyboard callbacks, display refreshes, and erase completion.],
+  [#raw("host_runtime.rs")], [Advances elapsed time through CPU, keyboard, and display callbacks; pauses and restarts timing at fresh interval boundaries.],
   [#raw("main.rs"), #raw("keyboard_input.rs"), #raw("front_panel.rs")], [Run the eframe shell, present framebuffer revisions and settings, translate host events, and schedule front-panel pointer input.],
 )
 
 The machine maps base and overflow ROMs, the backpack payloads, and all eight slots of each ROM expander. Selector 2/3 reads within the switchable window deliberately return zero for the reference's undefined bytes; unsupported selector-1 and selector-4 tails return errors. Board interrupt routing uses latched PIA flags as in the web reference. These choices do not establish full undefined-value or physical hardware parity.
 
-The host runs CPU and keyboard callbacks at 10 ms, phosphor refresh at 100 ms, and erase completion after 500 ms. Each CPU callback has an instruction budget derived from the selected speed. Machine errors stop the runtime and are shown in the UI; invalid speed settings are reported without replacing the prior setting. The app does not currently expose recovery controls for a stopped runtime.
+The host runs CPU and keyboard callbacks at 10 ms, phosphor refresh at 100 ms, and erase completion after 500 ms. Each CPU callback has an instruction budget derived from the selected speed. The native app starts paused, matching the web's explicit Start control; Start and Pause restart callback timing at fresh interval boundaries, and paused time does not run machine or display callbacks. Machine errors stop the runtime and are shown in the UI; invalid speed settings are reported without replacing the prior setting. The app does not currently expose recovery controls for a stopped runtime.
 
 The Make Copy button and the DisplayX output-A bit `0x20` falling edge capture the current framebuffer. The machine preserves up to eight ordered snapshots and counts additional requests that cannot be queued; the app reports the lost copies without stopping emulation. The native app uses the selected Save As dialog and writes a full-resolution PNG; it reports save failures and cancellation. The modal dialog pauses emulation rather than adding dialog time to the next update. Unlike the web's automatic download, this requires a destination choice; native dialog behavior and overwrite confirmation remain unverified.
 
-Native GPIB routing and devices, tape storage/import, Auto Load, printer, audio, and remaining lifecycle/front-panel controls are future work. The native app exposes Caps Lock as a UI toggle connected to the machine's keyboard line; physical Caps Lock key events are not wired. The current window has been launched and an earlier shell was visually observed; native input and presentation parity remain unverified.
+Native GPIB routing and devices, tape storage/import, Auto Load, printer, reset, audio, and other remaining front-panel controls are future work. The native app exposes Start/Pause controls and starts paused; it also exposes Caps Lock as a UI toggle connected to the machine's keyboard line. Physical Caps Lock key events and native input/presentation parity remain unverified.
 
 == Target separation and ownership
 
@@ -146,7 +146,7 @@ Native GPIB routing and devices, tape storage/import, Auto Load, printer, audio,
 - *Display model:* the machine bus translates display PIA accesses into vector, cursor, and character-dot operations on `DisplayModel`. It owns phosphor persistence/decay semantics and exports an immutable green-channel framebuffer suitable for egui painting or texture upload.
 - *Peripheral layer, planned:* a typed GPIB device interface with Loader, RTC, tape storage, and Printer implementations. Device addressing, byte streams, EOI behavior, and error responses are core contracts.
 - *Storage model and codecs, planned:* numbered file records, header fields, binary content, Flash Drive filename parsing, and archive encoding/decoding live outside UI code. UI file pickers and filesystem paths are adapters.
-- *egui application:* owns the implemented presentation, settings, input adapters, and screen-copy Save As dialog; storage dialogs, audio preferences, and lifecycle controls remain planned. It sends operations to the machine and presents resulting state rather than directly editing CPU or PIA registers.
+- *egui application:* owns the implemented presentation, settings, input adapters, Start/Pause controls, and screen-copy Save As dialog; reset, storage dialogs, and audio preferences remain planned. It sends operations to the machine and presents resulting state rather than directly editing CPU or PIA registers.
 - *Immutable compatibility assets:* port the existing base/option ROM bytes as data without editing the inherited web assets. Verify lengths and stable digests in tests before changing how they are packaged.
 
 == Frame and event flow
