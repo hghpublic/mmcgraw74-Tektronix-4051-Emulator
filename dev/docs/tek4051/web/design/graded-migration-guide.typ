@@ -62,7 +62,7 @@ As of 14 November 2026, no grade exit gate has been formally verified. The basel
 
 - *Grade 0 — open:* the pinned reference and multiple workflows are captured, but character-size rendering, physical host-key input, printer output, and GPIB byte/EOI transcripts remain unverified. Confirm the deferred baseline environment mode before freezing.
 - *Grade 1 — open:* selected CPU, memory, PIA, interrupt, keyboard, and ROM paths are tested; a bounded ROM startup and a keyboard-entered BASIC program run. Complete instruction/board coverage and selected differential traces remain to be established.
-- *Grade 2 — open:* the eframe shell renders the logical display and exposes granularity, speed, host keyboard, ten user keys, five line-editor keys, and Auto Number / Step Program. Native physical input, editor and program-control workflows, lifecycle controls, and screen copy have not been verified or completed.
+- *Grade 2 — open:* the eframe shell renders the logical display and exposes granularity, speed, host keyboard, user and line-editor keys, Auto Number / Step Program, Home/Page, Rub Out, and Break buttons. Native physical input, editor and program-control workflows, lifecycle controls, and screen copy have not been verified or completed.
 - *Grade 3 — open:* native GPIB devices, tape storage/import, and Auto Load are not implemented. Reference-side storage and program flows are not evidence of native loading.
 - *Grade 4 — open:* option-ROM bytes and bank mappings are present, but representative option-ROM program execution, printer, audio, and speed calibration remain open.
 - *Grade 5 — open:* full checklist replay and parity sign-off depend on the earlier gates and their recorded evidence.
