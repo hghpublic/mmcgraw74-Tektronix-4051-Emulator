@@ -137,7 +137,7 @@ The host runs CPU and keyboard callbacks at 10 ms, phosphor refresh at 100 ms, a
 
 The Make Copy button and the DisplayX output-A bit `0x20` falling edge capture the current framebuffer. The machine preserves up to eight ordered snapshots and counts additional requests that cannot be queued; the app reports the lost copies without stopping emulation. The native app uses the selected Save As dialog and writes a full-resolution PNG; it reports save failures and cancellation. The modal dialog pauses emulation rather than adding dialog time to the next update. Unlike the web's automatic download, this requires a destination choice; native dialog behavior and overwrite confirmation remain unverified.
 
-Native GPIB routing and devices, tape storage/import, Auto Load, printer, audio, and remaining lifecycle/front-panel controls are future work. The machine supports Caps Lock state, but the native adapter does not wire a Caps Lock control. The current window has been launched and an earlier shell was visually observed; native input and presentation parity remain unverified.
+Native GPIB routing and devices, tape storage/import, Auto Load, printer, audio, and remaining lifecycle/front-panel controls are future work. The native app exposes Caps Lock as a UI toggle connected to the machine's keyboard line; physical Caps Lock key events are not wired. The current window has been launched and an earlier shell was visually observed; native input and presentation parity remain unverified.
 
 == Target separation and ownership
 
