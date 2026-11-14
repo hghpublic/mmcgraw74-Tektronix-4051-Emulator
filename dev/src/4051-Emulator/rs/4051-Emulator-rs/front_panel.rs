@@ -1,4 +1,4 @@
-//! Presents user-definable, line-editor, and program keys and schedules pointer input.
+//! Presents front-panel keys and schedules their pointer input.
 //!
 //! The shifted functions use the same Tek codes with the Shift line active.
 //! Short presses and releases are extended so keyboard callbacks can observe
@@ -29,6 +29,9 @@ const EDITOR_KEYS: [(&str, u8); 5] = [
     ("RECALL LINE / RECALL NEXT LINE", 0x74),
 ];
 const PROGRAM_KEYS: [(&str, u8); 2] = [("AUTO NUMBER", 0x75), ("STEP PROGRAM", 0x76)];
+const SPECIAL_KEYS: [(&str, u8); 3] = [("HOME / PAGE", 0x6a), ("RUB OUT", 0x5f), ("BREAK", 0x6b)];
+const KEY_COUNT: usize =
+    USER_KEY_COUNT + EDITOR_KEYS.len() + PROGRAM_KEYS.len() + SPECIAL_KEYS.len();
 
 struct Press {
     id: u64,
@@ -43,7 +46,7 @@ struct ActivePress {
 }
 
 pub(super) struct FrontPanel {
-    key_rects: [(Rect, u8); USER_KEY_COUNT + EDITOR_KEYS.len() + PROGRAM_KEYS.len()],
+    key_rects: [(Rect, u8); KEY_COUNT],
     pointer_id: Option<u64>,
     next_id: u64,
     active: Option<ActivePress>,
@@ -54,8 +57,7 @@ pub(super) struct FrontPanel {
 impl Default for FrontPanel {
     fn default() -> Self {
         Self {
-            key_rects: [(Rect::NOTHING, 0);
-                USER_KEY_COUNT + EDITOR_KEYS.len() + PROGRAM_KEYS.len()],
+            key_rects: [(Rect::NOTHING, 0); KEY_COUNT],
             pointer_id: None,
             next_id: 0,
             active: None,
@@ -88,6 +90,12 @@ impl FrontPanel {
             for (index, &(label, code)) in PROGRAM_KEYS.iter().enumerate() {
                 let response = ui.button(label);
                 self.key_rects[USER_KEY_COUNT + EDITOR_KEYS.len() + index] =
+                    (response.rect.intersect(ui.clip_rect()), code);
+            }
+            ui.label("Keyboard:");
+            for (index, &(label, code)) in SPECIAL_KEYS.iter().enumerate() {
+                let response = ui.button(label);
+                self.key_rects[USER_KEY_COUNT + EDITOR_KEYS.len() + PROGRAM_KEYS.len() + index] =
                     (response.rect.intersect(ui.clip_rect()), code);
             }
         });

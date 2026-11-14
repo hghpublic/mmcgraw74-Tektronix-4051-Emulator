@@ -240,6 +240,48 @@ fn program_buttons_send_reference_keys_and_shift() {
     }
 }
 
+// What: Press the Home/Page, Rub Out, and Break buttons in both Shift states.
+// Why: Special keyboard buttons must deliver the web codes and current modifier.
+#[test]
+fn special_buttons_send_reference_keys_and_shift() {
+    // Arrange: Paint the panel and locate the three special keyboard buttons.
+    let mut harness = PanelHarness::new();
+    let labels = harness.frame(vec![], Modifiers::NONE, true, Duration::ZERO);
+    let shift = Modifiers {
+        shift: true,
+        ..Modifiers::NONE
+    };
+
+    // Act: Hold and release each button with and without Shift.
+    for (modifiers, shift_bit) in [(Modifiers::NONE, 1), (shift, 0)] {
+        for (label, code) in [("HOME / PAGE", 0x6a), ("RUB OUT", 0x5f), ("BREAK", 0x6b)] {
+            let position = labels.iter().find(|(text, _)| text == label).unwrap().1;
+            harness.frame(
+                vec![
+                    Event::PointerMoved(position),
+                    pointer(position, true, modifiers),
+                ],
+                modifiers,
+                true,
+                Duration::ZERO,
+            );
+
+            // Assert: The PIA sees the selected code and active-low Shift state.
+            assert_eq!(harness.key_value(), 0x80 | code);
+            assert_eq!(harness.machine.read_byte(0x87aa).unwrap() & 1, shift_bit);
+            harness.frame(
+                vec![pointer(position, false, modifiers)],
+                Modifiers::NONE,
+                true,
+                Duration::from_millis(100),
+            );
+            assert_eq!(harness.key_value(), 0x80);
+            assert_eq!(harness.machine.read_byte(0x87aa).unwrap() & 1, 1);
+            harness.frame(vec![], Modifiers::NONE, true, Duration::from_millis(100));
+        }
+    }
+}
+
 // What: Queue a user key followed by a shifted line-editor key.
 // Why: Different front-panel groups must share ordered press and release timing.
 #[test]
