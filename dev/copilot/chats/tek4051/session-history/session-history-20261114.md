@@ -145,3 +145,14 @@
 - Added Home/Page, Rub Out, and Break buttons using the web reference's codes `0x6a`, `0x5f`, and `0x6b` through the existing queued pointer path. Added separate-file egui/PIA tests for each button with and without Shift; native pointer input and actual editing or interrupt behavior remain unverified.
 - Validation passed: `cargo fmt --all -- --check`, `cargo test --locked -p tek4051-emulator --bin tek4051-emulator --test host_runtime` (35 passed), `cargo clippy --locked -p tek4051-emulator --all-targets -- -D warnings`, `cargo build --locked -p tek4051-emulator`, and Typst compilation of the updated architecture and graded guide. Temporary PDFs were removed.
 - Both Rust reviewers reported no actionable findings; the code reviewer also ran the full package test suite (93 passed).
+
+## Investigating native screen copy
+
+- Traced the web reference: the Make Copy button and a falling edge of DisplayX port-A output bit `0x20` invoke the same display copy, which downloads the current canvas as `screen.png`. The Rust port does not yet handle this signal or offer screen copy.
+- Native output destination and overwrite behavior need a decision before implementing the feature. No emulator code changed or tests were run for this investigation.
+
+## Implementing native screen copy
+
+- The user selected a native Save As dialog. Implemented the Make Copy button and DisplayX output-A bit `0x20` falling-edge trigger, with ordered event-time framebuffer snapshots and an eight-copy queue. Added `rfd` for the native dialog and `image` PNG encoding; cancellation and errors are displayed. The modal dialog pauses emulation rather than adding its duration to CPU time.
+- Review identified that stopping the machine on queue overflow was too disruptive; excess copy requests are now counted and reported without stopping execution. The test review also requested event-time PNG and deterministic modal-time coverage; focused regressions were added. The native dialog and overwrite confirmation remain unverified; Rust 1.85 and other platforms were not tested.
+- Final validation passed: `cargo fmt --all -- --check`, `cargo test --locked -p tek4051-emulator --bin tek4051-emulator --test display --test host_runtime` (44 passed), `cargo clippy --locked -p tek4051-emulator --all-targets -- -D warnings`, `cargo build --locked -p tek4051-emulator`, and Typst compilation of the updated architecture and graded guide. The code reviewer confirmed its overflow finding resolved; the test reviewer confirmed the PNG and timing findings resolved and requested an assertion that the overflow warning is actually painted. That assertion was added, its focused test and strict Clippy passed, and the test reviewer confirmed the remaining finding resolved.
