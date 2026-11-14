@@ -62,7 +62,7 @@ As of 14 November 2026, no grade exit gate has been formally verified. The basel
 
 - *Grade 0 — open:* the pinned reference and multiple workflows are captured, but character-size rendering, physical host-key input, printer output, and GPIB byte/EOI transcripts remain unverified. Confirm the deferred baseline environment mode before freezing.
 - *Grade 1 — open:* selected CPU, memory, PIA, interrupt, keyboard, and ROM paths are tested; a bounded ROM startup and a keyboard-entered BASIC program run. Complete instruction/board coverage and selected differential traces remain to be established.
-- *Grade 2 — open:* the eframe shell renders the logical display and exposes granularity, speed, host keyboard, ten user keys, and five line-editor keys. Native physical input, editor workflows, lifecycle controls, and screen copy have not been verified or completed.
+- *Grade 2 — open:* the eframe shell renders the logical display and exposes granularity, speed, host keyboard, ten user keys, five line-editor keys, and Auto Number / Step Program. Native physical input, editor and program-control workflows, lifecycle controls, and screen copy have not been verified or completed.
 - *Grade 3 — open:* native GPIB devices, tape storage/import, and Auto Load are not implemented. Reference-side storage and program flows are not evidence of native loading.
 - *Grade 4 — open:* option-ROM bytes and bank mappings are present, but representative option-ROM program execution, printer, audio, and speed calibration remain open.
 - *Grade 5 — open:* full checklist replay and parity sign-off depend on the earlier gates and their recorded evidence.
@@ -108,7 +108,7 @@ Evidence and limitations are tracked in `dev/docs/tek4051/phase-0/baseline-summa
 *Work:*
 
 - Build on the existing UI-independent display model, `HostRuntime`, and eframe framebuffer presentation. The native window has been launched and an earlier shell screenshot observed, but physical interaction and presentation parity are not established.
-- Smoke-test physical host keyboard input, the user-key and line-editor buttons, Shift functions, and speed selection in the native window. Add executable editor behavior checks through the running ROM; PIA-code tests alone do not prove editing.
+- Smoke-test physical host keyboard input, the user-key, line-editor, and program buttons, Shift functions, and speed selection in the native window. Add executable editor and program-control behavior checks through the running ROM; PIA-code tests alone do not prove these workflows.
 - Reproduce Tektronix key translation, modifiers, key press/release behavior, function keys, HOME/PAGE, RUB OUT, BREAK, and the clickable front-panel keys (`TekKeyboard.js:11-93, 279-365; Tektronix4051.html:72-192`).
 - The current pointer adapter queues short presses and releases with 100 ms minimum intervals, unlike the web's immediate transitions. Retain this documented deviation and test its effects on real interaction; implement remaining controls and Caps Lock.
 - Render the logical vector display and character dots with matching coordinates, colors, dot sizing, cursor behavior, erase timing, persistence, and refresh decay (`TekDisplay.js:63-145, 159-241, 272-329, 342-365`).
