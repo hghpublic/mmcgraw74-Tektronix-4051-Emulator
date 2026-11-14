@@ -108,6 +108,46 @@ fn host_intervals_drive_machine_and_display_callbacks() {
     assert_ne!(machine.read_byte(0x87a9).unwrap() & 0x80, 0);
 }
 
+// What: Pause execution across elapsed wall time and then resume at a fresh callback boundary.
+// Why: Paused time must not run CPU or display callbacks or shorten the next interval.
+#[test]
+fn pause_freezes_callbacks_and_resume_restarts_the_interval() {
+    // Arrange: Use RAM NOPs so the CPU position reveals any executed callback.
+    let mut machine = Machine::default();
+    machine.reset().unwrap();
+    let program_start = 0x0100;
+    for offset in 0..2_265 {
+        machine.write_byte(program_start + offset, 0x01).unwrap();
+    }
+    machine.cpu_mut().registers.pc = program_start;
+    machine.write_byte(0x87a9, 0x04).unwrap();
+    let mut runtime = HostRuntime::start(&mut machine);
+    runtime
+        .advance(&mut machine, Duration::from_millis(5))
+        .unwrap();
+    runtime.pause();
+
+    // Act: Advance one paused second, resume, and test both sides of a full 10 ms interval.
+    let paused_events = runtime
+        .advance(&mut machine, Duration::from_secs(1))
+        .unwrap();
+    assert_eq!(machine.read_byte(0x87a9).unwrap() & 0x80, 0);
+    runtime.resume().unwrap();
+    runtime
+        .advance(&mut machine, Duration::from_millis(9))
+        .unwrap();
+    let before_deadline = machine.registers().pc;
+    runtime
+        .advance(&mut machine, Duration::from_millis(1))
+        .unwrap();
+
+    // Assert: Paused time ran no callbacks, and resumed execution waited 10 ms.
+    assert_eq!(paused_events.display_refreshes, 0);
+    assert_eq!(before_deadline, program_start);
+    assert_eq!(machine.registers().pc, program_start + 2_264);
+    assert_ne!(machine.read_byte(0x87a9).unwrap() & 0x80, 0);
+}
+
 // What: Confirms the speed factor scales the CPU instruction budget per 10 ms interval.
 // Why: The reference exposes a speed multiplier independently of its callback cadence.
 #[test]
@@ -168,7 +208,17 @@ fn display_erase_completes_after_five_hundred_milliseconds() {
         Some(u8::MAX)
     );
 
-    // Act: Advance to 499 ms, then cross the final millisecond.
+    // Act: Pause during erase, then resume and advance to the 499 ms boundary.
+    runtime
+        .advance(&mut machine, Duration::from_millis(200))
+        .unwrap();
+    runtime.pause();
+    let paused_events = runtime
+        .advance(&mut machine, Duration::from_secs(1))
+        .unwrap();
+    assert!(machine.display_erase_pending());
+    assert_eq!(paused_events.display_refreshes, 0);
+    runtime.resume().unwrap();
     let before_completion = runtime
         .advance(&mut machine, Duration::from_millis(499))
         .unwrap();
@@ -282,4 +332,5 @@ fn machine_error_stops_runtime_at_a_callback_boundary() {
         runtime.advance(&mut machine, Duration::from_millis(1)),
         Err(HostRuntimeError::Stopped)
     );
+    assert_eq!(runtime.resume(), Err(HostRuntimeError::Stopped));
 }

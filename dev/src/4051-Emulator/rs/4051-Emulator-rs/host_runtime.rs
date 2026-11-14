@@ -89,11 +89,13 @@ impl Error for HostRuntimeError {
 /// CPU and keyboard callbacks share the reference's 10 ms cadence. Display
 /// refreshes update the machine's display model at the reference cadence, while
 /// display-erase completion calls `Machine::display_ready` after the reference delay.
+/// Pausing discards elapsed time and starts fresh callback intervals on resume.
 pub struct HostRuntime {
     execution_elapsed: Duration,
     display_elapsed: Duration,
     erase_elapsed: Option<Duration>,
     instructions_per_interval: usize,
+    paused: bool,
     stopped: bool,
 }
 
@@ -109,8 +111,36 @@ impl HostRuntime {
             display_elapsed: Duration::ZERO,
             erase_elapsed: None,
             instructions_per_interval: DEFAULT_INSTRUCTIONS_PER_INTERVAL,
+            paused: false,
             stopped: false,
         }
+    }
+
+    /// Pauses execution and restarts callback timing when resumed.
+    ///
+    /// Elapsed time while paused is ignored. The display-erase delay is
+    /// remeasured from the next running advance if an erase is still pending.
+    /// Pausing an already paused or stopped runtime has no effect.
+    pub fn pause(&mut self) {
+        if self.stopped || self.paused {
+            return;
+        }
+
+        self.reset_elapsed();
+        self.paused = true;
+    }
+
+    /// Resumes a paused runtime, rejecting runtimes stopped by machine errors.
+    pub fn resume(&mut self) -> Result<(), HostRuntimeError> {
+        if self.stopped {
+            return Err(HostRuntimeError::Stopped);
+        }
+
+        if self.paused {
+            self.reset_elapsed();
+            self.paused = false;
+        }
+        Ok(())
     }
 
     /// Sets the reference speed factor used to calculate each 10 ms CPU budget.
@@ -142,6 +172,9 @@ impl HostRuntime {
     ) -> Result<RuntimeEvents, HostRuntimeError> {
         if self.stopped {
             return Err(HostRuntimeError::Stopped);
+        }
+        if self.paused {
+            return Ok(RuntimeEvents::default());
         }
 
         self.sync_erase_state(machine);
@@ -208,10 +241,15 @@ impl HostRuntime {
     }
 
     fn stop(&mut self) {
+        self.reset_elapsed();
+        self.stopped = true;
+        self.paused = false;
+    }
+
+    fn reset_elapsed(&mut self) {
         self.execution_elapsed = Duration::ZERO;
         self.display_elapsed = Duration::ZERO;
         self.erase_elapsed = None;
-        self.stopped = true;
     }
 
     fn sync_erase_state(&mut self, machine: &Machine) {

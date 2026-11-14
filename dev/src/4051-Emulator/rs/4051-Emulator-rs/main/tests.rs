@@ -31,6 +31,29 @@ fn app_frame(
         .collect()
 }
 
+fn click_app_control(app: &mut Tek4051App, context: &egui::Context, now: Instant, label: &str) {
+    let position = app_frame(app, context, now, vec![])
+        .into_iter()
+        .find_map(|(text, position)| (text == label).then_some(position))
+        .unwrap();
+    for pressed in [true, false] {
+        app_frame(
+            app,
+            context,
+            now,
+            vec![
+                Event::PointerMoved(position),
+                Event::PointerButton {
+                    pos: position,
+                    button: PointerButton::Primary,
+                    pressed,
+                    modifiers: Modifiers::NONE,
+                },
+            ],
+        );
+    }
+}
+
 fn speed_control_frame(
     context: &egui::Context,
     runtime: &mut HostRuntime,
@@ -167,6 +190,9 @@ fn speed_click_applies_after_previous_elapsed_interval() {
     machine.cpu_mut().registers.pc = 0x0100;
     let mut app = Tek4051App::new(&creation, machine);
     let start = app.last_update;
+    let initial_text = app_frame(&mut app, &context, start, vec![]);
+    assert!(initial_text.iter().any(|(text, _)| text == "Start"));
+    click_app_control(&mut app, &context, start, "Start");
     let text = app_frame(&mut app, &context, start, vec![]);
     let position = text.iter().find(|(text, _)| text == "x1").unwrap().1;
 
@@ -197,6 +223,123 @@ fn speed_click_applies_after_previous_elapsed_interval() {
         vec![],
     );
     assert_eq!(app.machine.registers().pc, 0x0100 + 2_264 + 4_528);
+}
+
+// What: Start and pause the native app around elapsed CPU callbacks.
+// Why: The controls must freeze callbacks while paused and resume from a fresh interval.
+#[test]
+fn app_start_pause_controls_runtime_and_button_state() {
+    // Arrange: Start on RAM NOPs with the application initially paused.
+    let context = egui::Context::default();
+    let creation = eframe::CreationContext::_new_kittest(context.clone());
+    let mut machine = Machine::default();
+    machine.reset().unwrap();
+    for offset in 0..5_000 {
+        machine.write_byte(0x0100 + offset, 0x01).unwrap();
+    }
+    machine.cpu_mut().registers.pc = 0x0100;
+    let mut app = Tek4051App::new(&creation, machine);
+    let start = app.last_update;
+    let initial_text = app_frame(&mut app, &context, start, vec![]);
+
+    // Act: Start, let one interval run, pause through a long interval, then start again.
+    assert!(initial_text.iter().any(|(text, _)| text == "Start"));
+    click_app_control(&mut app, &context, start, "Start");
+    let before_first_deadline =
+        app_frame(&mut app, &context, start + Duration::from_millis(9), vec![]);
+    let pc_before_first_deadline = app.machine.registers().pc;
+    app_frame(
+        &mut app,
+        &context,
+        start + Duration::from_millis(10),
+        vec![],
+    );
+    let pc_after_first_deadline = app.machine.registers().pc;
+    click_app_control(
+        &mut app,
+        &context,
+        start + Duration::from_millis(10),
+        "Pause",
+    );
+    let paused_frame = app_frame(
+        &mut app,
+        &context,
+        start + Duration::from_millis(110),
+        vec![],
+    );
+    let pc_after_paused_interval = app.machine.registers().pc;
+    click_app_control(
+        &mut app,
+        &context,
+        start + Duration::from_millis(110),
+        "Start",
+    );
+    let resumed_frame = app_frame(
+        &mut app,
+        &context,
+        start + Duration::from_millis(120),
+        vec![],
+    );
+
+    // Assert: Labels track each state and only the two running deadlines advance the CPU.
+    assert!(
+        before_first_deadline
+            .iter()
+            .any(|(text, _)| text == "Pause")
+    );
+    assert_eq!(pc_before_first_deadline, 0x0100);
+    assert_eq!(pc_after_first_deadline, 0x0100 + 2_264);
+    assert!(paused_frame.iter().any(|(text, _)| text == "Start"));
+    assert_eq!(pc_after_paused_interval, pc_after_first_deadline);
+    assert!(resumed_frame.iter().any(|(text, _)| text == "Pause"));
+    assert_eq!(app.machine.registers().pc, 0x0100 + 2 * 2_264);
+}
+
+// What: Trigger a machine failure during Start and try the disabled Start control again.
+// Why: A stopped runtime must remain visibly stopped and cannot be resumed without reset.
+#[test]
+fn app_disables_start_after_runtime_failure() {
+    // Arrange: Select an unsupported ROM bank so the first running callback fails.
+    let context = egui::Context::default();
+    let creation = eframe::CreationContext::_new_kittest(context.clone());
+    let mut machine = Machine::default();
+    machine.reset().unwrap();
+    machine.write_byte(0x87c0, 0x08).unwrap();
+    machine.cpu_mut().registers.pc = 0x9800;
+    let mut app = Tek4051App::new(&creation, machine);
+    let start = app.last_update;
+
+    // Act: Start and reach the first CPU callback that reads the unsupported bank.
+    click_app_control(&mut app, &context, start, "Start");
+    let failure_frame = app_frame(
+        &mut app,
+        &context,
+        start + Duration::from_millis(10),
+        vec![],
+    );
+    let runtime_error = app.runtime_error.clone().unwrap();
+    click_app_control(
+        &mut app,
+        &context,
+        start + Duration::from_millis(10),
+        "Start",
+    );
+    let after_attempt = app_frame(
+        &mut app,
+        &context,
+        start + Duration::from_millis(20),
+        vec![],
+    );
+
+    // Assert: The error stays visible and the disabled control cannot resume execution.
+    assert!(
+        failure_frame
+            .iter()
+            .any(|(text, _)| text.starts_with("Emulation stopped: "))
+    );
+    assert!(after_attempt.iter().any(|(text, _)| text == "Start"));
+    assert!(!app.running);
+    assert_eq!(app.runtime_error.as_deref(), Some(runtime_error.as_str()));
 }
 
 // What: Toggle Caps Lock from the native UI and sample the keyboard PIA input.
@@ -453,6 +596,8 @@ fn screen_copy_dialog_time_does_not_advance_the_machine() {
     }
     machine.cpu_mut().registers.pc = 0x0100;
     let mut app = Tek4051App::new(&creation, machine);
+    let app_start = app.last_update;
+    click_app_control(&mut app, &context, app_start, "Start");
     app.machine.write_byte(0x8795, 0x04).unwrap();
     app.machine.write_byte(0x8794, 0x20).unwrap();
     app.machine.write_byte(0x8794, 0).unwrap();

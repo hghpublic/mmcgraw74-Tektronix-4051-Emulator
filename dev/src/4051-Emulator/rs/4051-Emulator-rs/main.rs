@@ -1,7 +1,8 @@
 //! Runs the native eframe window, host timing, keyboard input, and display presentation.
 //!
 //! The UI forwards host keys to the UI-independent machine and presents framebuffer
-//! revisions; emulator timing and device behavior remain in the library.
+//! revisions; emulator timing and device behavior remain in the library. Execution
+//! begins when the user selects Start and pauses without accumulating wall time.
 
 mod front_panel;
 mod keyboard_input;
@@ -56,6 +57,7 @@ struct Tek4051App {
     keyboard_input: KeyboardInput,
     front_panel: FrontPanel,
     caps_lock: bool,
+    running: bool,
     speed_index: usize,
     settings_error: Option<String>,
     last_modifiers: egui::Modifiers,
@@ -73,7 +75,8 @@ impl Tek4051App {
             egui::TextureOptions::NEAREST,
         );
         let display_revision = display.revision();
-        let runtime = HostRuntime::start(&mut machine);
+        let mut runtime = HostRuntime::start(&mut machine);
+        runtime.pause();
 
         Self {
             machine,
@@ -83,6 +86,7 @@ impl Tek4051App {
             keyboard_input: KeyboardInput::default(),
             front_panel: FrontPanel::default(),
             caps_lock: false,
+            running: false,
             speed_index: 0,
             settings_error: None,
             last_modifiers: egui::Modifiers::NONE,
@@ -104,6 +108,7 @@ impl Tek4051App {
                 modifiers,
             )
         {
+            self.running = false;
             self.runtime_error = Some(error.to_string());
         }
     }
@@ -137,6 +142,23 @@ impl Tek4051App {
 
         egui::TopBottomPanel::top("display_controls").show(context, |ui| {
             ui.horizontal(|ui| {
+                let run_label = if self.running { "Pause" } else { "Start" };
+                if ui
+                    .add_enabled(self.runtime_error.is_none(), egui::Button::new(run_label))
+                    .clicked()
+                {
+                    if self.running {
+                        self.runtime.pause();
+                        self.running = false;
+                    } else {
+                        match self.runtime.resume() {
+                            Ok(()) => self.running = true,
+                            Err(error) => {
+                                self.runtime_error = Some(error.to_string());
+                            }
+                        }
+                    }
+                }
                 ui.label("Display granularity:");
                 let mut granularity = self.machine.display().granularity();
                 ui.selectable_value(&mut granularity, DisplayGranularity::Fine, "Fine");
@@ -161,7 +183,7 @@ impl Tek4051App {
                         format!("Emulation stopped: {error}"),
                     );
                 } else {
-                    ui.label("Start, pause, reset, and storage are not connected.");
+                    ui.label("Reset and storage are not connected.");
                 }
             });
             if let Some(error) = &self.settings_error {
