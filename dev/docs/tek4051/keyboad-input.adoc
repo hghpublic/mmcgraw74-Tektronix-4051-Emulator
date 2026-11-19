@@ -1,0 +1,451 @@
+= Keyboard Input
+
+The #link("https://w140.com/tekwiki/wiki/4051")[Tektronix 4051] processed key presses through a dedicated hardware keyboard encoder connected to an #link("https://deramp.com/downloads/mfe_archive/050-Component%20Specifications/Motorola/Motorola%20-%20MC6820%20-%20Peripheral%20Interface%20Adapter%20(PIA).pdf")[MC6820 Peripheral Interface Adapter] (PIA), which triggered an interrupt on its #link("https://en.wikipedia.org/wiki/Motorola_6800")[Motorola 6800] microprocessor.
+
+
+[1] #link("https://forum.vcfed.org/index.php?threads/tektronix-4052-emulator.1251234/")[Tektronix 4052 Emulator], \
+[2] #link("https://www.google.com/goto?url=CAESXwHEhttps://w140.com/tekwiki/wiki/4051")[Tektronix 4051]
+
+Because the 4051 used a Direct-View Storage Tube (DVST)—a screen that permanently burns vector graphics and text onto its phosphor until the entire screen is erased—the system handled typing and editing very differently from modern raster displays.
+
+
+[1] #link("https://t-lcarchive.org/tektronix-4051/")[Tektronix 4051], \
+[2] #link("https://www.youtube.com/watch?v=xWrIS_l5HWk")[Introduction to the Tektronix 4051: Part 1 (Introduction and Quick Sample Programs)]
+
+. Hardware Encoding & Interrupts
+
+* Key Matrix & Encoder IC. Rather than having the main CPU constantly poll the key switches, the keyboard assembly contained its own dedicated encoder logic (such as a standard keyboard encoder chip paired with diode/switch matrices). When a key was pressed, the encoder debounced the switch, accounted for modifier keys (SHIFT, CTRL, TTY LOCK), and generated a parallel 7-bit ASCII code (plus an extra bit/line for special function keys).
+
+    [1] (https://www.google.com/goto?url=CAESZAHEIkXXutif1LC_DWL0MtRQdHIlUhqf3WbppZidq_h4E3ghqjxP71wHGdijNIdzNE9J5xd3rJab_8pimKLVv0pga9dO8b18AWwHSvYhOTZQHE-1FD37bVLXc3VtwWy1qmjBsZM)
+
+* PIA & CPU Interrupt. The keyboard's parallel data lines wired directly into a memory-mapped Motorola 6820 PIA. Along with the data bits, the keyboard sent a key-strobe signal to the PIA's control line (CA1/CB1). This strobe latched the key data into the PIA's peripheral data register and asserted an IRQ (Interrupt Request) to the 1 MHz Motorola 6800 CPU.
+
+    [1] (https://www.google.com/goto?url=CAESXwHEIkXXIsPPqRZ_cFJK6eqQvwYR_cS10oyWmmsBtX7xeZT_PgJHUyLx9-XeIcUwWNkhTgji3Iir5-u_FXpawfjk2sljVXPxCsWnny3J0_fGIil2R8xTsiQovEkSp5mV), [2] (https://www.google.com/goto?url=CAEShwEBxCJF13zo3Vu_W3RG1ym-ZDJ9uvCUSokwtvgYad41hVliNxjaUCsy4hjzOFdiep7ObtFvMenE5tW0pGasLwSx8mnsl2XjuDNlPLQ2nc3M_0fcSFiTnsAZtP92Vwg3ViMWnRU3x3WEd3xc4jSt4BmQQ4GJjVeDEhovIKvgPolSIBJyPBpnLPQ)
+
+* Firmware ISR. Upon receiving the interrupt, the 6800 paused its current task, ran the keyboard Interrupt Service Routine (ISR) stored in the 32 KB system ROM, and read the byte from the PIA. Reading the PIA automatically cleared the interrupt flag so the hardware was ready for the next keystroke.
+
+    [1] (https://www.google.com/goto?url=CAEShwEBxCJF13zo3Vu_W3RG1ym-ZDJ9uvCUSokwtvgYad41hVliNxjaUCsy4hjzOFdiep7ObtFvMenE5tW0pGasLwSx8mnsl2XjuDNlPLQ2nc3M_0fcSFiTnsAZtP92Vwg3ViMWnRU3x3WEd3xc4jSt4BmQQ4GJjVeDEhovIKvgPolSIBJyPBpnLPQ), \
+    [2] (https://www.google.com/goto?url=CAESXwHEIkXXIsPPqRZ_cFJK6eqQvwYR_cS10oyWmmsBtX7xeZT_PgJHUyLx9-XeIcUwWNkhTgji3Iir5-u_FXpawfjk2sljVXPxCsWnny3J0_fGIil2R8xTsiQovEkSp5mV)
+
+. The Line Buffer & Storage Tube Constraints
+
+Once the firmware read the character code, it did not immediately pass it to the BASIC interpreter. Instead, it routed the input into a dedicated RAM line buffer.
+
+[1] (https://www.google.com/goto?url=CAESkgEBxCJF183A8gU0M5_n3zkjQbdSLJwpdbW4-7l-U-R1ook7vehPJByLG5elXLkWYQ3xGZWDeQev9Nk_FmCLu71bIhzkG2rkO4n_GPN1plLqT4YznAUXYIM1vAqiupdXig10-d3EJCul7iETSbnfjKfpBpggJVUmUh3NC4Guw7Dap-DOvUWqBIY1VMHwSSPlW3agcw)
+
+* Why a Line Buffer Was Required. On a DVST display, once an electron beam draws a character, it cannot be erased individually. If you made a typo and pressed BACKSPACE, the cursor moved left and typed the new character directly over the old one, leaving overlapping ink on the screen.
+* Editing Before Execution. The RAM line buffer kept track of what you actually meant to type. Pressing BACKSPACE moved the pointer back in the RAM buffer so your next keystroke overwrote the bad character in memory, even though both characters remained visible on the storage tube.
+* Line Editor Keys. Dedicated keys (RUB OUT, CLEAR, and line-editing keys) manipulated this RAM buffer. Pressing RUB OUT wiped the buffer clean and echoed a backslash or moved to a fresh line so you could read what you were typing clearly.
+* Releasing to BASIC. Only when you pressed RETURN did the firmware release the finalized string from the line buffer to the BASIC interpreter (to be executed immediately or tokenized and stored as a numbered program line).
+
+[1] (https://www.google.com/goto?url=CAEScQHEIkXXSeBwDbxxZZMMVpjbcdkPkpFYI4C7lntbRkhYYwuS_qdkBBN0_ZfFRwCznNXxruxQiTbxvZkxvCb198IoAeCfsWTXec_BeUIactMn7iPm-g6GWUPkGHwm2W-uY0jup2FrnAP90uT9VPqau36M), \
+[2] (https://www.google.com/goto?url=CAESbQHEIkXX668728AHSfMOjUEVuclWcnhrtwxZ2F5vRAYx-eheLThnkKrOiaN76AMNcaPz6dwekhKbl3m77B7kF-bxSkEslERhAcnZj2CEtJ_ti-vEdM105ZRmWCq_Nw3ggVS_flGRUAWAB09bMp0), \
+[3] (https://www.google.com/goto?url=CAESZAHEIkXXutif1LC_DWL0MtRQdHIlUhqf3WbppZidq_h4E3ghqjxP71wHGdijNIdzNE9J5xd3rJab_8pimKLVv0pga9dO8b18AWwHSvYhOTZQHE-1FD37bVLXc3VtwWy1qmjBsZM), \
+[4] (https://www.google.com/goto?url=CAESkgEBxCJF183A8gU0M5_n3zkjQbdSLJwpdbW4-7l-U-R1ook7vehPJByLG5elXLkWYQ3xGZWDeQev9Nk_FmCLu71bIhzkG2rkO4n_GPN1plLqT4YznAUXYIM1vAqiupdXig10-d3EJCul7iETSbnfjKfpBpggJVUmUh3NC4Guw7Dap-DOvUWqBIY1VMHwSSPlW3agcw)
+
+. Special Keys & Operating Modes
+
+Depending on which key was pressed or what mode the 4051 was in, the firmware bypassed standard text buffering:
+
+* User-Definable Keys (UDKs). The 10 buttons along the top of the keyboard (20 with SHIFT) generated unique non-ASCII codes. When the ISR detected one of these codes, it triggered an immediate vector jump (essentially an automatic GOSUB) to specific predefined line numbers in the user's BASIC program (e.g., lines 4, 8, 12, etc.).
+
+[1] (https://www.google.com/goto?url=CAESZAHEIkXXutif1LC_DWL0MtRQdHIlUhqf3WbppZidq_h4E3ghqjxP71wHGdijNIdzNE9J5xd3rJab_8pimKLVv0pga9dO8b18AWwHSvYhOTZQHE-1FD37bVLXc3VtwWy1qmjBsZM)
+
+* System Control Keys. Keys like BREAK (pressed twice to halt execution) and PAGE / HOME (used to flood-erase the storage tube when a blinking F indicated the screen was full) were intercepted directly by the firmware to control program execution and screen erasure.
+
+[1] (https://www.google.com/goto?url=CAESigEBxCJF1y1f0fhgdBO90_LQRN8prCcT3pPDyBIQP2cqFCFApLJlxyTBjwb0nX8uvkyAKvjRoEUQkxat2NtWDnjE3oaNLH_mxlZsxLwLe2JJf_2B_ys7zcGjcA6-t5OMGG8sBfxVtelaPpee3kue8-z3S5t8J_OXoXEzZz5LU86N2fKaqEeLfIBtOB4), \
+[2] (https://www.google.com/goto?url=CAESbQHEIkXX668728AHSfMOjUEVuclWcnhrtwxZ2F5vRAYx-eheLThnkKrOiaN76AMNcaPz6dwekhKbl3m77B7kF-bxSkEslERhAcnZj2CEtJ_ti-vEdM105ZRmWCq_Nw3ggVS_flGRUAWAB09bMp0)
+
+* Terminal Mode. If the optional RS-232 Data Communications Interface was installed and active, the firmware bypassed the local line buffer and BASIC interpreter altogether, piping every keystroke straight out the serial port to a remote mainframe. 
+
+[1] (https://www.google.com/goto?url=CAESgAEBxCJF1we7wHTgIC8S4FhoLrXSwTgrasoypASiTelX-19HoK2j74ohCPA0C_AWWyNMMVgeL0bnBG9qip0olS5HeoE3AKHQyzJUpNgROBi35zWTe7fBEXQC9Ub3EDwj8bZzkwLaryExOrsXo338HW_3Dsvwq-eDEKrnO3g6FXI0mA), \
+[2] (https://www.google.com/goto?url=CAESXwHEIkXXIsPPqRZ_cFJK6eqQvwYR_cS10oyWmmsBtX7xeZT_PgJHUyLx9-XeIcUwWNkhTgji3Iir5-u_FXpawfjk2sljVXPxCsWnny3J0_fGIil2R8xTsiQovEkSp5mV)
+
+Are you working on repairing a physical 4051 keyboard, writing an emulator, or just exploring its hardware architecture? Let me know and I can pull up the exact PIA memory addresses or keyboard matrix pinouts.
+
+
+= PIA memory addresses
+
+In the Tektronix 4051, the Motorola 6820 Peripheral Interface Adapters (PIAs) are memory-mapped into the I/O block starting at $8780 (just above the maximum 32 KB user RAM space $0000–$7FFF and below the system ROM space).
+The Keyboard PIA (IC U320) is mapped to the base address $878C – $878F, alongside the other integral system PIAs: [1] (/goto?url=CAEShwEBxCJF13uAT1t7i5Ys3_alQrbFuYo1uQiM0IH0mzcDiw-5dXuUvUn8djMIntP5Gelgta_J_XshjT4EzOzymQMLPwHAE67TRubjJ4Y_p7cvGGUJaWnmLZNJZAZA1cLQ1aEM8EEVgoHM0knUmKJdEibVMf5sccVFVYN7vv9bZiBWLL3TF1yZEtg)
+
+Peripheral Subsystem	Base Address Range	Primary Hardware Functions
+Display PIA	$8780 – $8783	X/Y DACs, vector/character generator, screen erase (PAGE)
+Tape Drive PIA	$8784 – $8787	Internal DC300 cartridge motor, read/write data, track select
+GPIB (IEEE-488) PIA	$8788 – $878B	External bus data lines (DIO1–8) and handshake lines (DAV, NRFD, NDAC)
+Keyboard PIA (U320)	$878C – $878F	Keystroke ASCII input, key-strobe interrupt, and front-panel status lamps
+Communications PIA (Option 1)	$8790 – $8793	Optional RS-232 serial backpack & ROM pack bank-switching
+
+
+Keyboard PIA ($878C – $878F) Register Breakdown
+
+Because the Motorola 6820 uses two internal address select lines (RS0 wired to A0, RS1 wired to A1) plus an internal bit (CRA-2 / CRB-2) to multiplex the Data Direction Registers (DDR) with the Peripheral Data Registers (ORA/ORB), the four memory locations behave as follows:
+• $878C — Port A Data / Data Direction (ORA / DDRA)
+	• Role: Configured as an input port during initialization (DDRA = $00).
+	• Data Bits (PA0–PA6): Reads the 7-bit inverted/encoded ASCII value from the keyboard encoder.
+	• Bit 7 (PA7): Used to distinguish special non-ASCII function keys (such as User-Definable Keys and line-editor keys).
+• $878D — Port A Control Register (CRA)
+	• CA1 Input (Key Strobe): Wired to the keyboard's strobe line. A key press triggers an active edge on CA1, setting Bit 7 (IRQA1) high and pulling the CPU's /IRQ line low. Reading $878C automatically clears IRQA1.
+	• CA2 Output: Used as an acknowledge/clear line back to the keyboard encoder latch.
+• $878E — Port B Data / Data Direction (ORB / DDRB)
+	• Role: Configured primarily as an output port to drive the front-panel indicator lamps and system status lines.
+	• Status Lamps: Controls the BUSY, I/O, and BREAK LEDs on the front panel (active-low drivers; if the Keyboard PIA is removed from its socket, all status lamps stay permanently lit).
+	• Modifier / Special Sense Lines: Reads/controls auxiliary keyboard status flags (such as TTY LOCK or SHIFT state). [1] (/goto?url=CAESigEBxCJF1_qC-QP_bzzhL-r0kzzCCRxenWwKoSl6NLfcRi1taw-zMAdOyfAXYp4BLfGvUAtNQzbQHO7-kNs3gnt5KkRvP6bnnynyhua89tz5KPCwBV9M-5rvGRlk2RiAyVXEXFyDdHMMkXBQ7BLY59Nhxyz9mtX13BpJNSSXLPycS3EahIlqQcS_8KM), [2] (/goto?url=CAEShwEBxCJF13uAT1t7i5Ys3_alQrbFuYo1uQiM0IH0mzcDiw-5dXuUvUn8djMIntP5Gelgta_J_XshjT4EzOzymQMLPwHAE67TRubjJ4Y_p7cvGGUJaWnmLZNJZAZA1cLQ1aEM8EEVgoHM0knUmKJdEibVMf5sccVFVYN7vv9bZiBWLL3TF1yZEtg), [3] (/goto?url=CAESigEBxCJF1-rKPMhLkLRTOGy_dizicBPTKrPaq3kGlPj6_s7td3XMxDui9-h9T16GENK2r6i7sJDYRqM_a5PGFp2ro_nJrlOj96EX7wJ9pXK-iak2pN_oLVMfpWj8bJmmOihSPFSO41bRjW8ccvHQjVjduB4oqdtaVjwO9Q40HQz4bKHzdDFDafxlVJ8)
+• $878F — Port B Control Register (CRB)
+	• CB1 / CB2: Handles auxiliary interrupts (such as the BREAK key detection logic, which allows halting a running BASIC program without waiting for normal character input).
+(Note: Address decoding on the 4051 I/O board is partially decoded across the $87xx page, meaning mirror addresses exist within that block, though the system ROM firmware exclusively references the $8780–$879F range.)
+Would you like the exact bit-level pinout of $878C and $878E (such as which bit drives BUSY, I/O, and BREAK), or a disassembly trace of the 6800 keyboard ISR in ROM?
+
+= keyboard matrix pinouts
+
+In the Tektronix 4051, the keyboard assembly is a standalone PCB containing a 9×10 diode-isolated key matrix scanned locally by a General Instrument AY-5-2376 keyboard encoder IC (paired with discrete TTL gating for modifier/special keys), which outputs parallel data over a 20-pin ribbon cable (J1/P1) to the I/O board's Keyboard PIA (U320).
+(Note: Because the matrix scanning happens entirely on the keyboard PCB itself rather than through the main CPU, the ribbon cable carries encoded ASCII and control lines rather than raw row/column wires.)
+
+1. Keyboard Ribbon Cable Pinout (Keyboard PCB to I/O Board)
+
+The 20-pin header connects the keyboard assembly directly to Keyboard PIA U320 at $878C–$878F:
+
+Pin	Signal Name	PIA Connection	Direction	Function
+1–2	GND	Ground	—	Logic & chassis ground return
+3	D0 (Bit 0)	U320 PA0	KB → CPU	Parallel character code bit 0 (LSB)
+4	D1 (Bit 1)	U320 PA1	KB → CPU	Parallel character code bit 1
+5	D2 (Bit 2)	U320 PA2	KB → CPU	Parallel character code bit 2
+6	D3 (Bit 3)	U320 PA3	KB → CPU	Parallel character code bit 3
+7	D4 (Bit 4)	U320 PA4	KB → CPU	Parallel character code bit 4
+8	D5 (Bit 5)	U320 PA5	KB → CPU	Parallel character code bit 5
+9	D6 (Bit 6)	U320 PA6	KB → CPU	Parallel character code bit 6 (MSB of 7-bit ASCII)
+10	SPCL / D7	U320 PA7	KB → CPU	High/Active flag indicating a non-ASCII key (UDK or Edit key)
+11	KEY STROBE	U320 CA1	KB → CPU	Triggers hardware /IRQ interrupt when a valid key settles
+12	ACK / CLR	U320 CA2	CPU → KB	Resets/clears the keyboard strobe latch after PIA read
+13	/BREAK	U320 CB1	KB → CPU	Dedicated direct interrupt line for the BREAK key
+14	TTY LOCK	U320 PB4	KB → CPU	State of the latching TTY LOCK (Caps/Uppercase-only) switch
+15	BUSY LED	U320 PB0	CPU → KB	Active-low sink driving the front-panel BUSY indicator
+16	I/O LED	U320 PB1	CPU → KB	Active-low sink driving the front-panel I/O indicator
+17	BREAK LED	U320 PB2	CPU → KB	Active-low sink driving the front-panel BREAK indicator
+18	-12V	Power Supply	PSU → KB	Negative bias rail required by the AY-5-2376 PMOS encoder
+19–20	+5V	Power Supply	PSU → KB	TTL logic & LED supply rail
+
+
+2. Local Key Matrix Architecture (On the Keyboard PCB)
+
+On the keyboard circuit board itself, the mechanical key switches are wired into a 9-row × 10-column grid driven by the AY-5-2376 (40-pin DIP):
+• Drive Lines (Y0–Y8, Pins 32–40 on AY-5-2376). Sequential scan outputs driven low one at a time by the encoder's internal ring counter. Each key switch sits at a crosspoint with a 1N4148 / 1N914 isolation diode in series to prevent ghosting.
+• Sense Lines (X0–X9, Pins 22–31 on AY-5-2376). Sense inputs read back by the encoder when a crosspoint switch closes.
+• Bypassed Direct-Wired Keys. Three keys do not pass through the AY-5-2376 scan matrix because they must function independently of normal ASCII encoding:
+	1. SHIFT (Left & Right) — Wired directly to the encoder's SHIFT control input (Pin 20) and gated with PA7 for shifted User-Definable Keys (UDK 11–20).
+	2. CTRL — Wired directly to the encoder's CONTROL input (Pin 21) to mask bits D5 and D6 for ASCII control codes ($00–$1F).
+	3. BREAK & TTY LOCK — Wired straight to the ribbon cable (Pins 13 & 14) so BREAK can assert an immediate non-buffered interrupt on CB1 even if the encoder is busy or locked out.
+
+3. Hardware Repair & Diagnostics Note
+
+If you are troubleshooting a dead or misbehaving 4051 keyboard:
+• Check -12V first (Pin 18). The GI AY-5-2376 is an early PMOS chip requiring both +5V and -12V. If the -12V rail drops out, the LEDs (+5V) will still light up, but zero keystrokes will register.
+• All three LEDs stuck ON. Indicates either U320 (Keyboard PIA) has failed/lost reset initialization, or the 20-pin ribbon cable is unplugged/broken (since the LEDs are pulled up to +5V on the keyboard PCB and sunk to ground by U320).
+Are you trying to build a modern PS/2 or USB adapter to replace a missing 4051 keyboard, or diagnosing specific dead keys on an original board?
+
+
+= writing an emulator
+
+For writing a Tektronix 4051 emulator, you do not need to emulate the 9×10 switch matrix or the AY-5-2376 scan counter. Because all matrix scanning is isolated on the keyboard PCB, your emulator only needs to inject the final 8-bit key codes and interrupt edges directly into the Keyboard PIA (U320 at $878C–$878F).
+
+1. Core PIA Emulation State ($878C–$878F)
+
+When the 4051 ROM boots, it initializes U320 with DDRA = $00 (all inputs) and DDRB = $0F (lower 4 bits output for LEDs, upper 4 bits input). Your PIA class should track:
+• ORA ($878C when CRA.2 == 1): Holds the latched 8-bit key code (PA0–PA7).
+	• Crucial Clearing Behavior: When the 6800 CPU executes a read instruction (LDAA $878C), your PIA must clear CRA Bit 7 (IRQA1) and release the CPU's /IRQ line.
+• CRA ($878D):
+	• Bit 7 (IRQA1): Set to 1 when a key strobe arrives on CA1.
+	• Bit 1 (CA1 Edge Select): ROM configures this for active transition (rising/falling edge).
+	• Bit 3 (CA2 Output): Used by ROM to pulse/acknowledge the keyboard latch (CA2 toggles low then high after reading $878C).
+• ORB ($878E when CRB.2 == 1):
+	• Bits 0–2 (Outputs): Front-panel LEDs (0 = ON, 1 = OFF):
+		• Bit 0 ($01): BUSY LED
+		• Bit 1 ($02): I/O LED
+		• Bit 2 ($04): BREAK LED
+	• Bit 4 ($10, Input): TTY LOCK state (0 = Locked/Uppercase mode, 1 = Normal). Note that the ROM also enforces uppercase internally if TTY LOCK is active, so pass ASCII uppercase ($41–$5A) when locked.
+• CRB ($878F):
+	• Bit 7 (IRQB1): Set to 1 when the host user presses your mapped BREAK key (CB1 transition). Must also assert /IRQ to the 6800 CPU. Cleared automatically when the CPU reads $878E.
+
+2. Key Code Injection Mapping (PA0–PA7)
+
+When the host browser or desktop window receives a keydown event, translate it into the 8-bit value for $878C, set CRA |= 0x80, and pull /IRQ low:
+
+A. Standard ASCII Keys (PA7 = 0, $00–$7F)
+
+• Printable Characters: Standard 7-bit ASCII ($20–$7E). Note: The 4051 character generator supports uppercase, lowercase, and standard ASCII symbols (^, _, \, [, ], etc.).
+• Control & Editing Keys:
+	• RETURN → $0D (CR)
+	• LINE FEED → $0A (LF)
+	• BACKSPACE → $08 (BS — moves cursor left on DVST without erasing)
+	• SPACE → $20
+	• RUB OUT (Delete line) → $7F (DEL)
+	• CTRL + A..Z → $01–$1A (e.g., CTRL+C = $03, CTRL+G = $07 Bell)
+
+B. Special Non-ASCII Keys (PA7 = 1, $80–$FF)
+
+When PA7 is high (0x80 bit set), the ROM's ISR branches to the special function table rather than inserting a character into the RAM line buffer:
+
+Host Key Mapping	4051 Key Name	Hex Value ($878C)	Firmware Action
+F1 – F10	UDK 1 – 10	$81 – $8A	GOSUB to BASIC lines 4, 8, 12, 16, 20, 24, 28, 32, 36, 40
+Shift + F1 – F10	UDK 11 – 20	$91 – $9A	GOSUB to BASIC lines 44, 48, 52, 56, 60, 64, 68, 72, 76, 80
+Page Down / Clear	PAGE	$8B	Triggers DVST flood-erase ($8780 display PIA) & homes cursor
+Home	HOME	$8C	Moves cursor to top-left (0, 767) without erasing screen
+Insert	AUTO NUMBER	$8D	Prompts/increments BASIC line numbers automatically
+Shift + Delete	CLEAR	$8E	Clears current input line buffer
+Pause / Esc	BREAK	(CB1 Interrupt)	Sets CRB.7 (IRQB1) + triggers /IRQ (press twice to halt execution)
+
+
+3. Timing & Handshake Pitfalls in 4051 Emulation
+
+1. Do Not Overwrite Unread Keys: The 6800 runs at 1.0 MHz (or ~0.89 MHz effective bus clock). If a user pastes text into your emulator, queue the keystrokes in a FIFO buffer. Only load the next byte into $878C and assert CRA.7 after the CPU has read $878C (clearing CRA.7) and toggled CA2 (CRA.3), or wait ~2–5 ms between injected keystrokes.
+2. Interrupt Masking (I Flag): If the 6800's Condition Code Register (CCR) has the Interrupt Mask bit (I, bit 4) set to 1, keep /IRQ held low until the CPU executes CLI or RTI and services the interrupt.
+3. BREAK Key Double-Tap: In 4051 BASIC, pressing BREAK once pauses/flags a break request (lighting the BREAK LED via ORB.2 = 0); pressing it a second time aborts execution back to READY. Emulating CB1 accurately ensures PAUSE and BREAK behave identically to real hardware.
+
+
+Would you like the exact ROM entry addresses and disassembly of the 4051's /IRQ handler (so you can set breakpoints and verify your PIA handshake), or details on emulating the Display PIA ($8780) for the DVST storage tube?
+
+
+= emulating the Display PIA ($8780)
+
+Emulating the Display PIA (U420 at $8780–$8783) is where a Tektronix 4051 emulator differs fundamentally from a framebuffer machine. Because the 4051 uses an analog Direct-View Storage Tube (DVST) rather than video RAM, the CPU does not write pixels to memory. Instead, it feeds 10-bit X/Y coordinates into Digital-to-Analog Converters (DACs) and pulses beam-control lines to draw vectors and dot-matrix characters directly onto a persistent canvas.
+
+1. Display PIA ($8780–$8783) Register Map
+
+Unlike the Keyboard PIA, the Display PIA uses a shared 10-bit data bus split across Port A (8 bits) and the lower two bits of Port B (2 bits), while the upper bits of Port B and the Control Registers select which DAC latch receives the data and control the electron beam:
+
+Address	Register	Direction	Bit Assignments & Hardware Function
+$8780	ORA / DDRA	Output ($FF)	Data Bits D0–D7 (Lower 8 bits of 10-bit X/Y coordinate, or 7-bit ASCII char code)
+$8781	CRA	Control	CA2 Output: Strobes/latches the Y-Axis DAC (0→1 edge loads current 10-bit bus value into Y_DAC)
+$8782	ORB / DDRB	Mixed	• PB0–PB1 (Out): Data Bits D8–D9 (Upper 2 bits of 10-bit X/Y coordinate)
+• PB2 (Out): Beam Z-Axis / Unblank (1 = Beam ON / Store to phosphor, 0 = Move dark)
+• PB3 (Out): Write-Thru / Cursor Mode (1 = Dim non-storing beam for blinking cursor, 0 = Permanent store)
+• PB4 (Out): Vector / Char Generator Mode (1 = Hardware Character Dot-Clock active, 0 = Vector mode)
+• PB5 (Out): Screen Erase (PAGE) (1 triggers ~500 ms DVST flood-gun erase flash)
+• PB6 (In): Page Full (F) Sense (0 when screen is full; triggers blinking F warning)
+• PB7 (In): Vector/Char Busy Flag (1 while analog integrator or char generator is still drawing)
+$8783	CRB	Control	• CB2 Output: Strobes/latches the X-Axis DAC (0→1 edge loads current 10-bit bus value into X_DAC)
+• CB1 Input: Receives end-of-draw / timer ready signal from the vector/character timing circuit
+
+
+2. Coordinate System & Screen Geometry
+
+The 10-bit DACs provide a 1024 × 1024 coordinate space (0 to 1023), of which the visible Tektronix 4051 viewport uses 1024 × 780:
+• Origin (0, 0): Bottom-left corner of the screen (standard Cartesian coordinates, opposite of HTML5 Canvas / SDL where (0,0) is top-left).
+• Top-Right (1023, 779): Upper boundary of the visible tube.
+• Screen Scaling Formula: When mapping a 10-bit DAC coordinate (x_dac, y_dac) to a host window of width W and height H (e.g., 1024 × 780):
+\(\text{screen\_x}=x_{\text{dac}}\)
+\(\text{screen\_y}=779-y_{\text{dac}}\)
+
+3. Emulating Vector Drawing (PB4 = 0)
+
+In real hardware, when X_DAC or Y_DAC is updated, analog RC integrators slew the electron beam smoothly from (old_X, old_Y) to (new_X, new_Y).
+1. Track Previous Beam Position: Maintain prev_x and prev_y in your display state.
+2. Detect DAC Latch Strobes:
+	• When CRA bit 3 (CA2) transitions, latch:
+\(\text{new\_y}=(\text{ORB}\&\text{0x03})\ll 8\mid \text{ORA}\)
+	• When CRB bit 3 (CB2) transitions, latch:
+\(\text{new\_x}=(\text{ORB}\&\text{0x03})\ll 8\mid \text{ORA}\)
+3. Render the Segment:
+	• If PB2 == 1 (Beam Unblanked) and PB3 == 0 (Store Mode): Draw a bright green line (#33FF66 or #00FF88) from (prev_x, prev_y) to (new_x, new_y) onto your persistent storage layer.
+	• If PB2 == 1 and PB3 == 1 (Write-Thru Mode): Draw onto a transient overlay layer (cleared every frame). The 4051 uses Write-Thru mode to draw the non-destructive blinking cursor and GIN (Graphic Input) crosshairs without burning them into the storage tube!
+	• If PB2 == 0 (Beam Blanked): Move (prev_x, prev_y) to (new_x, new_y) without drawing anything.
+4. Update Position: Set prev_x = new_x, prev_y = new_y.
+
+4. Emulating Hardware Character Generation (PB4 = 1)
+
+The 4051 does not draw text via software vector strokes. Instead, it has a dedicated hardware character generator ROM (7×9 dot matrix, 35 lines × 72 characters per screen) on the display board:
+1. Position Cursor: The 6800 firmware first moves the beam (with PB2 = 0) to the character's bottom-left baseline (char_x, char_y).
+2. Load ASCII & Strobe: The firmware sets PB4 = 1, places the 7-bit ASCII code ($20–$7E) onto ORA ($8780), and pulses the character strobe.
+3. Render Glyph: Your emulator looks up the 7×9 bitmap for that ASCII character (or renders a matching monospace glyph scaled to ~14 × 22 DAC units) at (prev_x, prev_y) onto the persistent storage layer (or transient layer if PB3 == 1).
+4. Advance Beam: Hardware automatically advances prev_x by one character cell width (14 DAC units) after drawing.
+
+5. Emulating Screen Erase (PAGE / PB5) & Busy Timing
+
+• Flood Erase (PB5 High): When the user presses PAGE or BASIC executes the PAGE command, the ROM pulses ORB bit 5 (PB5 = 1).
+	• Clear your persistent storage canvas back to dark green/black (#061409).
+	• (Optional authenticity) Briefly flash the entire screen bright green (#66FF99) for ~250–400 ms before fading to dark—this mimics the iconic DVST flood-gun erase flash.
+• Busy Flag (PB7): The 6800 firmware polls ORB bit 7 (LDAA $8782 / BMI or BITA #$80) after starting a vector or character to wait for the analog beam to finish settling before sending the next coordinate. If you render instantaneously in your emulator, simply return PB7 = 0 (Ready) so the ROM never hangs waiting on analog hardware.
+Would you like the exact bitmask logic for CRA/CRB (CA2/CB2 strobe modes) on the 6820 PIA, or details on emulating the internal DC300 Tape Drive PIA ($8784) so you can load .tap software images?
+
+
+= exact ROM entry addresses and disassembly of the 4051's /IRQ handler
+
+
+= exact bitmask logic for CRA/CRB (CA2/CB2 strobe modes)
+
+The Motorola 6820 / 6821 Peripheral Interface Adapter (PIA) uses identical bit layouts for both Control Register A (CRA at $8781, $8785, $8789, $878D) and Control Register B (CRB at $8783, $8787, $878B, $878F).
+In an emulator, getting the strobe modes (CA2 and CB2) right is critical because the Tektronix 4051 firmware relies heavily on automatic read/write handshaking pulses rather than manually bit-banging CA2/CB2 high and low.
+
+1. Control Register (CRA / CRB) Bitmask Layout
+
+
+Bit	Mask	Name	Direction	Function
+7	0x80	IRQA1 / IRQB1	Read-Only	Set to 1 on active edge of CA1 / CB1. Cleared automatically when reading ORA / ORB.
+6	0x40	IRQA2 / IRQB2	Read-Only	Set to 1 on active edge of CA2 / CB2 (only when Bit 5 == 0, i.e., input mode). Cleared on ORA / ORB read.
+5	0x20	CA2 / CB2 Dir	R/W	0 = CA2/CB2 is an Input (interrupt sense)
+1 = CA2/CB2 is an Output (strobe / level control)
+4	0x10	CA2 / CB2 Mode	R/W	Selects sub-mode (Pulse vs. Manual Level when Bit 5 == 1)
+3	0x08	CA2 / CB2 Ctrl	R/W	Selects edge/pulse type or direct output level (0 or 1)
+2	0x04	DDR / OR Select	R/W	0 = Base address accesses DDRA/DDRB
+1 = Base address accesses ORA/ORB
+1	0x02	CA1 / CB1 Edge	R/W	0 = Trigger IRQA1/IRQB1 on falling edge (1→0)
+1 = Trigger IRQA1/IRQB1 on rising edge (0→1)
+0	0x01	CA1 / CB1 IRQ En	R/W	1 = Assert CPU /IRQ line when Bit 7 is 1
+0 = Mask /IRQ (Bit 7 still latches status, but /IRQ stays high)
+
+
+2. The Four CA2 / CB2 Output Strobe Modes (Bit 5 == 1)
+
+When (CR & 0x20) != 0, CA2 (for Port A) or CB2 (for Port B) acts as an output controlled by Bits 5, 4, and 3 (CR & 0x38):
+
+CR & 0x38	Binary (b5 b4 b3)	Mode Name	Hardware Behavior & 4051 Usage
+0x20	1 0 0	Read/Write Handshake Strobe	Port A (CA2): Goes 0 after CPU reads ORA, returns 1 on next active CA1 edge.
+Port B (CB2): Goes 0 after CPU writes ORB, returns 1 on next active CB1 edge.
+0x28	1 0 1	Automatic E-Clock Pulse Strobe	Port A (CA2): Pulses 1 → 0 → 1 automatically for 1 CPU E-clock cycle every time the CPU reads ORA.
+Port B (CB2): Pulses 1 → 0 → 1 automatically for 1 CPU E-clock cycle every time the CPU writes ORB.
+0x30	1 1 0	Manual Output LOW (0)	Forces CA2 / CB2 output pin permanently 0.
+0x38	1 1 1	Manual Output HIGH (1)	Forces CA2 / CB2 output pin permanently 1.
+
+(Notice the critical difference between Port A and Port B in modes 0x20 and 0x28: CA2 triggers on a READ of ORA, whereas CB2 triggers on a WRITE to ORB!)
+
+3. How the Tektronix 4051 Uses These Modes
+
+
+A. Display PIA ($8780–$8783) — DAC Latching
+
+To load the 10-bit X and Y DACs with minimal instructions, the 4051 ROM exploits Manual Output toggling (0x30 ↔ 0x38) and Automatic Pulse Mode (0x28):
+• Latching Y_DAC (CA2 on $8781): The ROM writes the low byte to $8780 (ORA) and high bits to $8782 (ORB), then toggles CRA ($8781) between $34 (0011_0100, CA2 = 0) and $3C (0011_1100, CA2 = 1). On the 0 → 1 rising edge of CA2, your emulator latches Y_DAC.
+• Latching X_DAC (CB2 on $8783): The ROM sets CRB ($8783) to $2C (0010_1100, which is Mode 0x28 + DDR disabled). Every time the CPU executes STAB $8782 (writing the upper 2 bits of X to ORB), the PIA automatically generates a 1 → 0 → 1 pulse on CB2! Your emulator should latch X_DAC immediately when a write to $8782 occurs while (CRB & 0x38) == 0x28.
+
+B. Keyboard PIA ($878C–$878F) — Key Acknowledge
+
+• Reading $878C (ORA): The ROM initializes CRA ($878D) with $25 (0010_0101: CA2 = Handshake Mode 0x20, ORA selected, CA1 falling-edge, /IRQ enabled) or $2D (0010_1101: CA2 = Auto-Pulse 0x28).
+• When the CPU executes LDAA $878C, two things happen simultaneously in hardware:
+	1. CRA Bit 7 (IRQA1) is cleared to 0 (releasing /IRQ).
+	2. CA2 pulses/drops low, signaling the keyboard's ACK / CLR line (Ribbon Pin 12) that the byte has been consumed and the encoder can present the next keystroke.
+
+4. Drop-In C/Pseudocode Logic for Your PIA Class
+
+----
+c
+// Called when CPU reads base + 0 (ORA) or base + 2 (ORB)
+uint8_t pia_read_data(PIA_Port *port, bool is_port_b) {
+    if ((port->cr & 0x04) == 0) {
+        return port->ddr; // DDR selected
+    }
+    // Clear interrupt flags IRQA1/IRQB1 (bit 7) and IRQA2/IRQB2 (bit 6)
+    port->cr &= 0x3F;
+    update_cpu_irq();
+
+    // Port A CA2 automatic read-strobe modes (0x20 or 0x28)
+    if (!is_port_b) {
+        uint8_t mode = port->cr & 0x38;
+        if (mode == 0x20) {
+            set_ca2(0); // Held low until next active CA1 edge
+        } else if (mode == 0x28) {
+            pulse_ca2(); // 1 -> 0 -> 1 strobe (triggers Keyboard ACK)
+        }
+    }
+    return (port->pins_in & ~port->ddr) | (port->or_out & port->ddr);
+}
+
+// Called when CPU writes base + 0 (ORA) or base + 2 (ORB)
+void pia_write_data(PIA_Port *port, uint8_t val, bool is_port_b) {
+    if ((port->cr & 0x04) == 0) {
+        port->ddr = val;
+        return;
+    }
+    port->or_out = val;
+
+    // Port B CB2 automatic write-strobe modes (0x20 or 0x28)
+    if (is_port_b) {
+        uint8_t mode = port->cr & 0x38;
+        if (mode == 0x20) {
+            set_cb2(0); // Held low until next active CB1 edge
+        } else if (mode == 0x28) {
+            pulse_cb2(); // 1 -> 0 -> 1 strobe (triggers Display X_DAC latch!)
+        }
+    }
+}
+
+// Called when CPU writes base + 1 (CRA) or base + 3 (CRB)
+void pia_write_ctrl(PIA_Port *port, uint8_t val, bool is_port_b) {
+    // Bits 6 & 7 are read-only; preserve them
+    port->cr = (port->cr & 0xC0) | (val & 0x3F);
+
+    // Check manual output level modes (0x30 = Low, 0x38 = High)
+    uint8_t mode = port->cr & 0x38;
+    if (mode == 0x30) {
+        if (is_port_b) set_cb2(0); else set_ca2(0);
+    } else if (mode == 0x38) {
+        if (is_port_b) set_cb2(1); else set_ca2(1); // Rising edge latches Y_DAC!
+    }
+    update_cpu_irq();
+}
+----
+Verwende Code mit Vorsicht.
+
+
+----
+// Called when CPU reads base + 0 (ORA) or base + 2 (ORB)
+uint8_t pia_read_data(PIA_Port *port, bool is_port_b) {
+    if ((port->cr & 0x04) == 0) {
+        return port->ddr; // DDR selected
+    }
+    // Clear interrupt flags IRQA1/IRQB1 (bit 7) and IRQA2/IRQB2 (bit 6)
+    port->cr &= 0x3F;
+    update_cpu_irq();
+
+    // Port A CA2 automatic read-strobe modes (0x20 or 0x28)
+    if (!is_port_b) {
+        uint8_t mode = port->cr & 0x38;
+        if (mode == 0x20) {
+            set_ca2(0); // Held low until next active CA1 edge
+        } else if (mode == 0x28) {
+            pulse_ca2(); // 1 -> 0 -> 1 strobe (triggers Keyboard ACK)
+        }
+    }
+    return (port->pins_in & ~port->ddr) | (port->or_out & port->ddr);
+}
+
+// Called when CPU writes base + 0 (ORA) or base + 2 (ORB)
+void pia_write_data(PIA_Port *port, uint8_t val, bool is_port_b) {
+    if ((port->cr & 0x04) == 0) {
+        port->ddr = val;
+        return;
+    }
+    port->or_out = val;
+
+    // Port B CB2 automatic write-strobe modes (0x20 or 0x28)
+    if (is_port_b) {
+        uint8_t mode = port->cr & 0x38;
+        if (mode == 0x20) {
+            set_cb2(0); // Held low until next active CB1 edge
+        } else if (mode == 0x28) {
+            pulse_cb2(); // 1 -> 0 -> 1 strobe (triggers Display X_DAC latch!)
+        }
+    }
+}
+
+// Called when CPU writes base + 1 (CRA) or base + 3 (CRB)
+void pia_write_ctrl(PIA_Port *port, uint8_t val, bool is_port_b) {
+    // Bits 6 & 7 are read-only; preserve them
+    port->cr = (port->cr & 0xC0) | (val & 0x3F);
+
+    // Check manual output level modes (0x30 = Low, 0x38 = High)
+    uint8_t mode = port->cr & 0x38;
+    if (mode == 0x30) {
+        if (is_port_b) set_cb2(0); else set_ca2(0);
+    } else if (mode == 0x38) {
+        if (is_port_b) set_cb2(1); else set_ca2(1); // Rising edge latches Y_DAC!
+    }
+    update_cpu_irq();
+}
+
+----
+
+Would you like to go back to the ROM /IRQ handler disassembly and boot check addresses, or explore the Tape Drive PIA ($8784) or GPIB PIA ($8788) next?
+
+
+
+
