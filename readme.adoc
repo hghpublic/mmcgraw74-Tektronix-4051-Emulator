@@ -1,0 +1,51 @@
+= Tektronix 4051 Emulator
+:toc:
+:sectnums:
+ifndef::env-github[:icons: font]
+:note-caption: :paperclip:
+:important-caption: :exclamation:
+:warning-caption: :warning:
+
+[IMPORTANT]
+====
+The commit history of this branch is volatile. +
+Rebasing and force pushing happens at will. +
+The commits in this branch mostly collect changes with a narrow scope. +
+They rarely document code evolution. +
+The history may be rewritten without notice.
+====
+
+[WARNING]
+====
+AI is heavily involved in the development and maintenance of this project.
+====
+
+== Tektronix 4051 Emulator
+
+`dev/src/4051-Emulator`
+
+----
+.
+├── rs
+│   ├── 4051-Emulator-rs
+│   └── FlashDriveTests-rs
+└── web
+    ├── 4051-Emulator
+    ├── Benchmark
+    ├── FlashDrive
+    └── playwright
+----
+
+=== Origins and Enhancements
+
+Based on the Tektronix 4051 Emulator by Monty McGraw
+
+https://github.com/mmcgraw74/Tektronix-4051-Emulator
+
+which builds on the work of Dave Roberts and enhancements by Jon Stanley found here:
+
+https://github.com/jonbstanley/Tek405xEmulator
+
+plus additional enhancements by Twilight-Logic in his fork here: 
+
+https://github.com/Twilight-Logic/Tek405xEmulator
