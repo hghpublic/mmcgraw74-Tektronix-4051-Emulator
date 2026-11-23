@@ -1,0 +1,74 @@
+
+body {
+  font-family: 'Recursive', sans-serif;
+  font-size: 12pt;
+}
+
+a {
+  color: #209000;
+  text-decoration: none;
+}
+
+a:visited {
+  color: #206000;
+}
+
+hr {
+  border: 0;
+  border-bottom: 1px solid #000000;
+}
+
+li {
+  list-style: square;
+}
+
+#footer .email {
+  color: gray;
+}
+
+/* Markdown Elements Styling */
+
+
+/* Code Block */
+
+#content code {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+#content .codehilite {
+  background-color: #eeffcc;
+}
+
+#content pre {
+  color: #333333;
+  background-color: #eeffcc;
+  border: 1px solid #ae3;
+  border-radius: 6px;
+}
+
+#content code:not(pre > code) {
+  color: #333333;
+  background-color: #eeffcc;
+  border-radius: 6px;
+}
+
+/* Project List Entries (Main Index) */
+
+.project {
+  border: 1px solid black;
+}
+
+.project h2 {
+  color: black;
+}
+
+/* News Entry */
+
+#content h5 {
+  background-color: lightgrey;
+}
+
+#content .entry em {
+  color: #2C3539;
+}
+

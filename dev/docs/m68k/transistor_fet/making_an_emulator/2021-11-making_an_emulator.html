@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<!-- saved from url=(0060)https://jabberwocky.ca/posts/2021-11-making_an_emulator.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>Making a 68000 Emulator in Rust</title>
+
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="transistorfet's website">
+    <meta name="author" content="transistor fet">
+    <meta name="keywords" content="jabberwocky, transistorfet, programming, electronics, rust, m68k, z80, sega, genesis, megadrive, trs80, emulator">
+
+    <link rel="canonical" href="https://jabberwocky.ca/posts/2021-11-making_an_emulator.html">
+
+    <link rel="stylesheet" href="./2021-11-making_an_emulator_files/css2" type="text/css" charset="utf-8">
+    <link rel="stylesheet" href="./2021-11-making_an_emulator_files/css2(1)" type="text/css" charset="utf-8">
+    <link rel="stylesheet" href="./2021-11-making_an_emulator_files/normalize.css" type="text/css" charset="utf-8">
+    <link rel="stylesheet" href="./2021-11-making_an_emulator_files/layout.css" type="text/css" charset="utf-8">
+    <link id="pagetheme" rel="stylesheet" href="./2021-11-making_an_emulator_files/theme-light.css" type="text/css" charset="utf-8">
+    <link id="codetheme" rel="stylesheet" href="./2021-11-making_an_emulator_files/code-default.css" type="text/css" charset="utf-8">
+    <script src="./2021-11-making_an_emulator_files/theme.js"></script>
+</head>
+<body>
+<div id="main">
+
+    <div id="theme-toggle">dark</div>
+
+    <div id="menu-toggle">☰</div>
+    <input class="toggle-trigger" type="checkbox" checked="">
+    <div id="sidebar" class="toggle">
+        <a href="https://jabberwocky.ca/"><h2>Projects</h2></a>
+        <hr>
+
+<ul class="projects">
+<li><a href="https://jabberwocky.ca/projects/retroverse/">RetroVerse</a></li>
+<li><a href="https://jabberwocky.ca/projects/computie/">Computie 68k</a></li>
+<li><a href="https://jabberwocky.ca/projects/molten/">Molten</a></li>
+<li><a href="https://jabberwocky.ca/projects/moa/">Moa Emulator</a></li>
+<li><a href="https://jabberwocky.ca/projects/ruxpin/">Ruxpin OS</a></li>
+<li><a href="https://jabberwocky.ca/projects/fidget/">Fidget</a></li>
+<li><a href="https://jabberwocky.ca/projects/z280/">Z280 Computer</a></li>
+<li><a href="https://jabberwocky.ca/projects/gloworm/">Gloworm OS</a></li>
+<li><a href="https://jabberwocky.ca/projects/nerve/">Nerve Control Network</a></li>
+<li><a href="https://jabberwocky.ca/projects/deskclock2/">DeskClock2</a></li>
+<li><a href="https://jabberwocky.ca/projects/rgbnode/">RGB Node</a></li>
+<li><a href="https://jabberwocky.ca/projects/rgbnode-rs/">RGB Node with Rust</a></li>
+<li><a href="https://jabberwocky.ca/projects/webmush/">WebMUSH</a></li>
+<li><a href="https://jabberwocky.ca/projects/conlog/">Conlog</a></li>
+<li><a href="https://jabberwocky.ca/projects/fallingrust/">Falling Rust</a></li>
+<li><a href="https://jabberwocky.ca/projects/abugslife/">A Bug's Life</a></li>
+<li><a href="https://jabberwocky.ca/projects/acamlslife/">A Caml's Life</a></li>
+<li><a href="https://jabberwocky.ca/projects/synthetik/">Synthetik Synth</a></li>
+<li><a href="https://jabberwocky.ca/projects/meteorman/">Meteor Games</a></li>
+<li><a href="https://jabberwocky.ca/projects/logarithm/">Logarithm IRC Bot</a></li>
+<li><a href="https://jabberwocky.ca/projects/sdm/">Super Duper Moo</a></li>
+<li><a href="https://jabberwocky.ca/projects/sdrl/">SDRL Interpreter</a></li>
+<li><a href="https://jabberwocky.ca/projects/stutter/">Stutter IRC Client</a></li>
+</ul>
+<hr>
+<h3>Posts</h3>
+<ul class="posts">
+<li><a href="https://jabberwocky.ca/posts/2022-01-emulating_the_sega_genesis_part3.html">Emulating the Sega Genesis - Part III</a></li>
+<li><a href="https://jabberwocky.ca/posts/2022-01-emulating_the_sega_genesis_part2.html">Emulating the Sega Genesis - Part II</a></li>
+<li><a href="https://jabberwocky.ca/posts/2022-01-emulating_the_sega_genesis_part1.html">Emulating the Sega Genesis - Part I</a></li>
+<li><a href="https://jabberwocky.ca/posts/2021-11-making_an_emulator.html">Making a 68000 Emulator in Rust</a></li>
+<li><a href="https://jabberwocky.ca/posts/2021-09-bootstrapping_with_arduino.html">Bootstrapping a Homebuilt Computer Using An Arduino</a></li>
+<li><a href="https://jabberwocky.ca/posts/2021-08-molten_overview.html">An Overview Of Molten Internals</a></li>
+</ul>
+
+
+        <hr>
+        <a href="https://github.com/transistorfet"><img class="icon" src="./2021-11-making_an_emulator_files/github.svg"></a>
+        <a href="https://bsky.app/profile/transistorfet.bsky.social"><img class="icon" src="./2021-11-making_an_emulator_files/bluesky.svg"></a>
+        <a href="https://mastodon.social/@transistor_fet"><img class="icon" src="./2021-11-making_an_emulator_files/mastodon.svg"></a>
+        <a href="https://twitch.tv/transistorfet"><img class="icon" src="./2021-11-making_an_emulator_files/twitch.svg"></a>
+        <a href="https://youtube.com/@transistorfet"><img class="icon" src="./2021-11-making_an_emulator_files/youtube.svg"></a>
+        <a href="https://dev.to/transistorfet"><img class="icon" src="./2021-11-making_an_emulator_files/dev-badge.svg"></a>
+        <a href="mailto:trans@jabberwocky.ca"><img class="icon" src="./2021-11-making_an_emulator_files/email.svg"></a>
+        <a href="https://linkedin.com/in/sarimcfarland"><img class="icon" src="./2021-11-making_an_emulator_files/linkedin.svg"></a>
+    </div>
+    <div id="content">
+
+<h1 id="making-a-68000-emulator-in-rust">Making a 68000 Emulator in Rust</h1>
+<p><em>Also available on <a href="https://dev.to/transistorfet/making-a-68000-emulator-in-rust-1kfk">dev.to</a></em></p>
+<h6 id="written-november-2021-by-transistor_fet"><em>Written November 2021 by transistor_fet</em></h6>
+<p>A few months ago, I was looking for a project to do while recovering from a bout of illness.  I
+needed something that was straight-forward enough to work on without getting stuck on tough
+decisions or the need to learn a lot before diving in, which was the case with all the other
+projects on my plate at the time.  My girlfriend suggested writing an
+<a href="https://jabberwocky.ca/projects/moa/">emulator</a>, and my first thought was to try emulating the
+computer I made last year, <a href="https://jabberwocky.ca/projects/Computie/">Computie</a>, since I already
+had a fair amount of code for it that I knew well, and the 68000 architecture and assembly language
+was still fresh in my mind.  Naturally I chose to write it in Rust.</p>
+<p>I've worked on different projects that have some vague similarities to emulators, such as
+programming language interpreters and artificial life simulations but I haven't actually tried to
+make an emulator before.  I'm not aiming to make a fast emulator, and since this is meant to be fun,
+I'm not <em>as</em> concerned about accuracy (specifically instruction execution time accuracy).  I would,
+however, like something that's flexible enough to experiment with different hardware designs.
+Perhaps I could use this with some of my future hardware designs to test out hardware configurations
+and to develop and test the software that runs on them.  It would also be nice to emulate some
+vintage computers that use the 68000, which each have their own I/O devices that would need
+simulating.  With that in mind, we should work towards making independent components for each
+device, which interact in regular ways and can be combined in different configurations without the
+need to modify the components themselves (ie. no tight coupling of components)</p>
+<p>I chose Rust because it's currently my favorite systems language.  I've used C and C++ quite a bit
+as well, but Rust's advanced type system is much more pleasant to work with, and the compile-time
+checks means I can focus less on simple bugs and more on the problem at hand, getting more done in
+the same amount of time.  I'm assuming here some familiarity with Rust, as well as the basic
+principles of how a computer works, but not necessarily that much about the 68000 or emulators.  We
+will start with some code to simulate the computer memory, creating an abstract way of accessing
+data.  We'll then implement the NOP (no operation) instruction, the simplest possible instruction,
+for the 68000, and expand the implementation from there.  Once we've created a way of handling the
+passage of time for the CPUs and I/O devices, we'll implement a simple serial port controller which
+will act as our primary I/O device.  From there we'll make all of our simulated devices, represented
+as <code>struct</code> objects in Rust, look the same so that we can treat them the same, regardless of what
+they represent internally.  We'll then be able to package them up into a single working system and
+set them in motion to run the Computie software from binary images.</p>
+<ul>
+<li><a href="https://jabberwocky.ca/posts/2021-11-making_an_emulator.html#the-computer">The Computer</a></li>
+<li><a href="https://jabberwocky.ca/posts/2021-11-making_an_emulator.html#the-68000">The 68000</a></li>
+<li><a href="https://jabberwocky.ca/posts/2021-11-making_an_emulator.html#the-68681-serial-port-controller">The 68681 Serial Port Controller</a></li>
+<li><a href="https://jabberwocky.ca/posts/2021-11-making_an_emulator.html#the-memory">The Memory</a></li>
+<li><a href="https://jabberwocky.ca/posts/2021-11-making_an_emulator.html#simulating-the-cpu">Simulating The CPU</a></li>
+<li><a href="https://jabberwocky.ca/posts/2021-11-making_an_emulator.html#adding-instructions">Adding Instructions</a></li>
+<li><a href="https://jabberwocky.ca/posts/2021-11-making_an_emulator.html#abstracting-time">Abstracting Time</a></li>
+<li><a href="https://jabberwocky.ca/posts/2021-11-making_an_emulator.html#some-i-o">Some I/O</a></li>
+<li><a href="https://jabberwocky.ca/posts/2021-11-making_an_emulator.html#box-it-up">Box It Up</a></li>
+<li><a href="https://jabberwocky.ca/posts/2021-11-making_an_emulator.html#an-addressable-of-addressables--the-data-bus-">An Addressable of Addressables (The Data Bus)</a></li>
+<li><a href="https://jabberwocky.ca/posts/2021-11-making_an_emulator.html#a-happy-little-system">A Happy Little System</a></li>
+<li><a href="https://jabberwocky.ca/posts/2021-11-making_an_emulator.html#tying-it-all-together">Tying It All Together</a></li>
+<li><a href="https://jabberwocky.ca/posts/2021-11-making_an_emulator.html#now-what">Now What</a></li>
+</ul>
+<h2 id="the-computer">The Computer</h2>
+<p>Computie is a single board computer with a Motorola 68010 CPU connected to 1MB of RAM, some flash,
+and an MC68681 dual serial port controller, which handles most of the I/O.  (The
+<a href="https://en.wikipedia.org/wiki/Motorola_68010">68010</a> is almost identical to the 68000 but with some
+minor fixes which won't affect us here.  I'll mostly be referring to the common aspects of both
+processors).  One of the serial connections is used as a TTY to interact with either the unix-like
+Computie OS, or the monitor software that's normally stored in the flash chip.  It also supports a
+CompactFlash card and SLIP connection over the other serial port for internet access, but we won't
+cover those here.  In order to get a working emulator, we'll focus on just the CPU, memory, and
+MC68681 controller.</p>
+<h2 id="the-68000">The 68000</h2>
+<p>The 68000 is 32-bit processor with a 16-bit data bus and 16-bit arithmetic logic unit.  It was used
+on many early computers including the early Macintosh series, the early Sun Microsystems
+workstations, the Amiga, the Atari ST, and the Sega Genesis/Mega Drive, just to name a few.  It was
+almost chosen for the IBM PC as well, but IBM wanted to use an inexpensive 8-bit data bus in the PC,
+and the 68008 (with an 8-bit data bus) wasn't available at the time.  The 8088, with it's 8-bit bus,
+was available however, and we have been stuck with that decision ever since.</p>
+<p>The 68000 has 8 32-bit general purpose data registers, and 7 32-bit general purpose address
+registers plus two stack registers which can be accessed as the 8th address register depending on
+whether the CPU is in Supervisor mode or User mode.  Internally the address registers use a separate
+bus and adder unit from the main arithmetic logic unit, which only operates on the data registers.
+This affects which instructions can be used with which registers, and operations on address
+registers don't always affect the condition flags (which has caused me many troubles both when
+writing the Computie software, and with the implementation of instructions here).</p>
+<p>A 16-bit status register is used for condition codes and for privileged flags like the Supervisor
+mode enable flag and the interrupt priority level.  Only the lower 8 bits can be modified from User
+mode.  The conditions flags are set by many of the instructions based on their results, and can be
+checked by the conditional jump instructions to branch based on the results of comparisons.</p>
+<p>The program counter register keeps track of the next instruction to be executed.  Instructions are
+always a multiple of 2-byte words, and the CPU uses <a href="https://en.wikipedia.org/wiki/Endianness">big
+endian</a> byte order, so the most significant byte will
+always be in the lower byte address in memory.  As an example, the NOP instruction uses the opcode
+0x4E71, where 0x4E would be the first byte in memory followed by 0x71.  A longer instruction like
+ADDI can have instruction words after the opcode (in this case the immediate data to add).  For
+example, <code>addil #0x12345678, %d0</code> which adds the hex number 0x12345678 to data register 0 would
+be encoded as the sequence of words [0x0680, 0x1234, 0x5678].  The opcode word, 0x0680, has encoded
+in it that it's an ADDI instruction, that the size of the operation is a long word (32-bit), and
+that it should use data register 0 as both the number to add to, and the destination where the
+result will be stored.  (Note: 68000 assembly language instructions move data from the left hand
+operand to the right hand operand, unlike Intel x86 assembly language which uses the reverse).</p>
+<p>A vector table is expected at address 0 which contains an array of up to 256 32-bit addresses.  The
+first address contains the value to be loaded into the Supervisor stack register upon reset, and the
+remaining addresses are the value loaded into the program counter when a given exception occurs.
+This table cannot be relocated on the 68000, but it can be changed after reset on the 68010.
+Computie uses the 68010 for this exact feature, so that the OS can put the vector table in RAM, but
+the monitor software doesn't use interrupts.  We won't cover interrupts here so this feature isn't
+needed for now and we can focus only on emulating the 68000.  As for the vector table, we just need
+to simulate how the processor starts up on power on or after a reset, in which case the vector table
+is always at address 0, and the first two long words are the stack pointer and initial program
+counter respectively.</p>
+<h2 id="the-68681-serial-port-controller">The 68681 Serial Port Controller</h2>
+<p>The MC68681 is a peripheral controller designed specifically for use with the 68000 series.  It has
+two serial channels, A and B, as well as an onboard 16-bit timer/counter, 8 general purpose output
+pins, and 6 general purpose input pins.  Internally it has 16 registers which can be read or written
+to from the CPU.  The behaviour of the 16 registers is sometimes different between reading and
+writing, such as the status registers (SRA &amp; SRB) which indicate the current status of the serial
+ports when read, and the clock select registers (CSRA &amp; CSRB) which configure the serial port clocks
+when writing to the same address as the status registers.  It can also generate an interrupt for
+one of 8 different internal conditions, such as data ready to read on a given channel, or the timer
+reaching zero.  It uses it's own clock signal to generate the serial clocks and to count down with,
+so it will need to run some code along side the CPU to simulate its internal state.</p>
+<h2 id="the-memory">The Memory</h2>
+<p>Now that we have a bit of background on the devices we'll be emulating, lets start making the
+emulator.  The first thing we'll need in order to emulate our computer is a way of accessing and
+addressing memory where instruction data can be read from.  We need to eventually have a common way
+of reading and writing to either simulated ram, or simulated I/O devices.  Since we want to keep
+things generic and interchangeable, using Rust enums for the different devices in the system would
+be too tightly-coupled.  Traits it is, so we'll start with an <code>Addressable</code> trait.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">type</span><span class="w"> </span><span class="nc">Address</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">u64</span><span class="p">;</span><span class="w">     </span><span class="c1">// I (wishfully) chose u64 here in case</span>
+<span class="w">                        </span><span class="c1">// I ever emulate a 64-bit system</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">Addressable</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">len</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">read</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>I went through a few different iterations of this, especially for the <code>.read()</code> method.  At first I
+returned an iterator over the data starting at the address given, which works well for simulated
+memory, but reading from an I/O device could return data that is unique to when it was read.  For
+example, when reading the next byte of data from a serial port, the data will be removed from the
+device's internal FIFO and returned, and since at that point it won't be stored anywhere, we can't
+have a reference to it.  We need the data (of variable length) to be owned by the caller when the
+method returns, and passing in a reference to a mutable array to hold that data is a simple way to
+do that.</p>
+<p>We can also add some default methods to the trait which will make it easier to access multi-byte
+values.  The example here only shows methods to read and write 16 bit numbers in big endian byte
+order but there are also similar methods for 32-bit numbers and for little endian numbers.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">Addressable</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">read_beu16</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="kt">u16</span><span class="p">,</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="mi">2</span><span class="p">];</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">data</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(</span><span class="n">read_beu16</span><span class="p">(</span><span class="o">&amp;</span><span class="n">data</span><span class="p">))</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">write_beu16</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="kt">u16</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="mi">2</span><span class="p">];</span>
+<span class="w">        </span><span class="n">write_beu16</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">data</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
+
+<span class="cp">#[inline(always)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">read_beu16</span><span class="p">(</span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">u16</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u16</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="o">|</span>
+<span class="w">    </span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u16</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="cp">#[inline(always)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">write_beu16</span><span class="p">(</span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">],</span><span class="w"> </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="kt">u16</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">value</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u8</span><span class="p">;</span>
+<span class="w">    </span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u8</span><span class="p">;</span>
+<span class="w">    </span><span class="n">data</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>Now for some simulated ram that implements our trait.  (I'm leaving out the <code>.new()</code> methods for
+most of the code snippets because they are pretty straight-forward, but you can assume they exist,
+and take their field values as arguments, or set their fields to 0).</p>
+<div class="codehilite"><pre><span></span><code><span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">MemoryBlock</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">content</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Addressable</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">MemoryBlock</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">len</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">contents</span><span class="p">.</span><span class="n">len</span><span class="p">()</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">read</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">data</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">contents</span><span class="p">[(</span><span class="n">addr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="p">];</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">data</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">contents</span><span class="p">[(</span><span class="n">addr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<h2 id="simulating-the-cpu">Simulating The CPU</h2>
+<p>With just the Addressable trait, we can start simulating the CPU.  Each cycle of the CPU involves
+reading in instruction data, decoding it, executing the instruction, modifying the stored state of
+the CPU, and finally checking for interrupts or breakpoints before looping again.  We don't need all
+of this to start though, so first lets make some CPU state so that we at least have a PC (program
+counter) to keep track of the instruction data we've read.</p>
+<div class="codehilite"><pre><span></span><code><span class="cp">#[derive(Copy, Clone, Debug, PartialEq)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">M68kStatus</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Init</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Running</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Stopped</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="cp">#[derive(Clone, Debug, PartialEq)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">M68kState</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">status</span><span class="p">:</span><span class="w"> </span><span class="nc">M68kStatus</span><span class="p">,</span>
+
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">pc</span><span class="p">:</span><span class="w"> </span><span class="kt">u32</span><span class="p">,</span><span class="w">            </span><span class="c1">// Program Counter</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">sr</span><span class="p">:</span><span class="w"> </span><span class="kt">u16</span><span class="p">,</span><span class="w">            </span><span class="c1">// Status Register</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">d_reg</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="kt">u32</span><span class="p">;</span><span class="w"> </span><span class="mi">8</span><span class="p">],</span><span class="w">    </span><span class="c1">// Data Registers</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">a_reg</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="kt">u32</span><span class="p">;</span><span class="w"> </span><span class="mi">7</span><span class="p">],</span><span class="w">    </span><span class="c1">// Address Registers</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">ssp</span><span class="p">:</span><span class="w"> </span><span class="kt">u32</span><span class="p">,</span><span class="w">           </span><span class="c1">// Supervisor Stack Pointer</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">usp</span><span class="p">:</span><span class="w"> </span><span class="kt">u32</span><span class="p">,</span><span class="w">           </span><span class="c1">// User Stack Pointer</span>
+<span class="p">}</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">M68k</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">state</span><span class="p">:</span><span class="w"> </span><span class="nc">M68kState</span><span class="p">,</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>(I've separated the state into its own struct, separate from the <code>M68k</code> struct, in part to make it
+cleaner, but mostly to make it easier to test.  We can get a complete known state using just
+M68kState::new(), and we can clone, modify, and compare states because we've derived <code>PartialEq</code>, so
+after running a test on a given instruction, we only need one <code>assert_eq!(cpu.state,
+expected_state)</code> to check if the resulting state is what we expected).</p>
+<p>Next we need to initialize the CPU.  When the 68000 is reset, it first reads in the stack pointer
+and initial value of the PC register from the beginning of memory where the vector table is located.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">impl</span><span class="w"> </span><span class="n">M68k</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">init</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">memory</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="k">dyn</span><span class="w"> </span><span class="n">Addressable</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">state</span><span class="p">.</span><span class="n">ssp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory</span><span class="p">.</span><span class="n">read_beu32</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">state</span><span class="p">.</span><span class="n">pc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory</span><span class="p">.</span><span class="n">read_beu32</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">state</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">M68kStatus</span><span class="p">::</span><span class="n">Running</span><span class="p">;</span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>Since the decoding of instructions can be a bit convoluted, and since speed is not our utmost goal, it's
+cleaner to decode the instructions fully into some kind of internal representation, and then execute
+them based on that representation.  For now, lets just add a NOP instruction.</p>
+<div class="codehilite"><pre><span></span><code><span class="cp">#[derive(Clone, Debug)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Instruction</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">NOP</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">M68k</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">read_instruction_word</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">memory</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="k">dyn</span><span class="w"> </span><span class="n">Addressable</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="kt">u16</span><span class="p">,</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">ins</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory</span><span class="p">.</span><span class="n">read_beu16</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">state</span><span class="p">.</span><span class="n">pc</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Address</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">state</span><span class="p">.</span><span class="n">pc</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(</span><span class="n">ins</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">memory</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="k">dyn</span><span class="w"> </span><span class="n">Addressable</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">Instruction</span><span class="p">,</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">ins</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">read_instruction_word</span><span class="p">(</span><span class="n">memory</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">ins</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="mh">0x4E71</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">Ok</span><span class="p">(</span><span class="n">Instruction</span><span class="p">::</span><span class="n">NOP</span><span class="p">),</span>
+<span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">panic!</span><span class="p">(</span><span class="s">"instruction not yet supported: {:#04X}"</span><span class="p">,</span><span class="w"> </span><span class="n">ins</span><span class="p">),</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>We can then make a function to execute the decoded instruction</p>
+<div class="codehilite"><pre><span></span><code><span class="k">impl</span><span class="w"> </span><span class="n">M68k</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">execute</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">memory</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="k">dyn</span><span class="w"> </span><span class="n">Addressable</span><span class="p">,</span><span class="w"> </span><span class="n">instruction</span><span class="p">:</span><span class="w"> </span><span class="nc">Instruction</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">instruction</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">Instruction</span><span class="p">::</span><span class="n">NOP</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">// Do Nothing</span>
+<span class="w">                </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="w">            </span><span class="p">},</span>
+<span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">panic!</span><span class="p">(</span><span class="s">"Instruction not implemented: {:?}"</span><span class="p">,</span><span class="w"> </span><span class="n">instruction</span><span class="p">),</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>And finally a function to wrap these stages together into a single step.  For debugging purposes
+we'll print out what instruction we're about to execute after decoding but before executing.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">impl</span><span class="w"> </span><span class="n">M68k</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">memory</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="k">dyn</span><span class="w"> </span><span class="n">Addressable</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">state</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">M68kStatus</span><span class="p">::</span><span class="n">Init</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">init</span><span class="p">(</span><span class="n">memory</span><span class="p">),</span>
+<span class="w">            </span><span class="n">M68kStatus</span><span class="p">::</span><span class="n">Stopped</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span><span class="n">Error</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="s">"cpu has stopped"</span><span class="p">)),</span>
+<span class="w">            </span><span class="n">M68kStatus</span><span class="p">::</span><span class="n">Running</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">state</span><span class="p">.</span><span class="n">pc</span><span class="p">;</span>
+<span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">instruction</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">decode</span><span class="p">(</span><span class="n">memory</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="w">                </span><span class="fm">println!</span><span class="p">(</span><span class="s">"{:08x}: {:?}"</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="n">instruction</span><span class="p">);</span>
+<span class="w">                </span><span class="bp">self</span><span class="p">.</span><span class="n">execute</span><span class="p">(</span><span class="n">memory</span><span class="p">,</span><span class="w"> </span><span class="n">instruction</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="w">                </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="w">            </span><span class="p">},</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>At this point we have enough pieces to loop over a series of NOP instructions.  Our main function
+looks like the following</p>
+<div class="codehilite"><pre><span></span><code><span class="k">const</span><span class="w"> </span><span class="n">ROM</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="kt">u16</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="p">[</span>
+<span class="w">    </span><span class="mh">0x0010</span><span class="p">,</span><span class="w"> </span><span class="mh">0x0000</span><span class="p">,</span><span class="w">     </span><span class="c1">// Initial stack address is at 0x00100000</span>
+<span class="w">    </span><span class="mh">0x0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x0008</span><span class="p">,</span><span class="w">     </span><span class="c1">// Initial PC address is at 0x8, which is the word</span>
+<span class="w">                        </span><span class="c1">//  that follows this</span>
+
+<span class="w">    </span><span class="mh">0x4e71</span><span class="p">,</span><span class="w">             </span><span class="c1">// 4 NOP instructions</span>
+<span class="w">    </span><span class="mh">0x4e71</span><span class="p">,</span><span class="w">             </span>
+<span class="w">    </span><span class="mh">0x4e71</span><span class="p">,</span>
+<span class="w">    </span><span class="mh">0x4e71</span><span class="p">,</span><span class="w">             </span>
+
+<span class="w">    </span><span class="mh">0x4e72</span><span class="p">,</span><span class="w"> </span><span class="mh">0x2700</span><span class="w">      </span><span class="c1">// The STOP #0x2700 instruction, which would normally</span>
+<span class="w">                        </span><span class="c1">//  stop the CPU but it's unsupported, so it will</span>
+<span class="w">                        </span><span class="c1">//  cause a panic!()</span>
+<span class="p">];</span>
+
+<span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">cpu</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">M68k</span><span class="p">::</span><span class="n">new</span><span class="p">();</span>
+<span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">memory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MemoryBlock</span><span class="p">::</span><span class="n">from_u16</span><span class="p">(</span><span class="n">ROM</span><span class="p">);</span>
+<span class="k">loop</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">cpu</span><span class="p">.</span><span class="n">step</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">memory</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>Our output should look something like this:</p>
+<div class="codehilite"><pre><span></span><code>00000008: NOP
+0000000a: NOP
+0000000c: NOP
+0000000e: NOP
+thread 'main' panicked at 'instruction not yet supported: 0x4E72', src/main.rs:184:18
+</code></pre></div>
+
+<h2 id="adding-instructions">Adding Instructions</h2>
+<p>Since the 68000 has a reasonably orthogonal instruction set, we can break down the opcode word into
+sub-components, and build up instructions by separately interpreting those sub-components, rather
+than having a match arm for each of the 65536 combinations.  There is a really helpful <a href="http://goldencrystal.free.fr/M68kOpcodes-v2.3.pdf">chart by
+GoldenCrystal</a> which shows the full breakdown of
+opcodes for the 68000.  We can look at the first 4 bits of the instruction word to separate it into
+16 broad categories of instruction, and then further break it down from there.  The full code can be
+seen <a href="https://github.com/transistorfet/moa/blob/c3951999771bbb56f45e1a8c5cd0b61758aed778/src/cpus/m68k/decode.rs">here</a></p>
+<p>We can extend our <code>Instruction</code> type to contain more instructions, including the addressing modes
+that the 68000 supports.  A <code>MOVE</code> instruction for example can move data to or from a data or
+address register, or to memory indirectly using an address in an address register (optionally
+pre-decrementing or post-incrementing the address), or indirectly using an offset added to an
+address register, as well as a few others.  Since these different addressing modes are available for
+most instructions, we can wrap them up into a <code>Target</code> type, and use that as the arguments of
+instructions in the <code>Instruction</code> type.  For example, the instruction <code>addil #0x12345678, %d0</code> would
+be represented as <code>Instruction::ADD(Target::Immediate(0x12345678), Target::DirectDReg(0),
+Size::Long)</code>.  We will maintain the same operand order as the 68k assembly language so data will
+move from the left hand operand (<code>0x12345678</code>) to the right hand operand (<code>%d0</code>).</p>
+<div class="codehilite"><pre><span></span><code><span class="k">pub</span><span class="w"> </span><span class="k">type</span><span class="w"> </span><span class="nc">Register</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">u8</span><span class="p">;</span>
+
+<span class="cp">#[derive(Copy, Clone, Debug, PartialEq)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Size</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Byte</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Word</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Long</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="cp">#[derive(Copy, Clone, Debug, PartialEq)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Condition</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">NotEqual</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Equal</span><span class="p">,</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
+
+<span class="cp">#[derive(Copy, Clone, Debug, PartialEq)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Target</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Immediate</span><span class="p">(</span><span class="kt">u32</span><span class="p">),</span><span class="w">                     </span><span class="c1">// A u32 literal</span>
+<span class="w">    </span><span class="n">DirectDReg</span><span class="p">(</span><span class="n">Register</span><span class="p">),</span><span class="w">               </span><span class="c1">// Contents of a data register</span>
+<span class="w">    </span><span class="n">DirectAReg</span><span class="p">(</span><span class="n">Register</span><span class="p">),</span><span class="w">               </span><span class="c1">// Contents of an address register</span>
+<span class="w">    </span><span class="n">IndirectAReg</span><span class="p">(</span><span class="n">Register</span><span class="p">),</span><span class="w">             </span><span class="c1">// Contents of a memory location given by an address register</span>
+<span class="w">    </span><span class="n">IndirectARegInc</span><span class="p">(</span><span class="n">Register</span><span class="p">),</span><span class="w">          </span><span class="c1">// Same as IndirectAReg but increment the address register</span>
+<span class="w">                                        </span><span class="c1">// by the size of the operation *after* reading memory</span>
+<span class="w">    </span><span class="n">IndirectARegDec</span><span class="p">(</span><span class="n">Register</span><span class="p">),</span><span class="w">          </span><span class="c1">// Same as IndirectAReg but decrement the address register</span>
+<span class="w">                                        </span><span class="c1">// by the size of the operation *before* reading memory</span>
+<span class="w">    </span><span class="n">IndirectARegOffset</span><span class="p">(</span><span class="n">Register</span><span class="p">,</span><span class="w"> </span><span class="kt">i32</span><span class="p">),</span><span class="w">  </span><span class="c1">// Contents of memory given by an address register plus the</span>
+<span class="w">                                        </span><span class="c1">// signed offset (address register will *not* be modified)</span>
+<span class="w">    </span><span class="n">IndirectPCOffset</span><span class="p">(</span><span class="kt">i32</span><span class="p">),</span><span class="w">              </span><span class="c1">// Same as IndirectARegOffset but using the PC register</span>
+<span class="w">    </span><span class="n">IndirectMemory</span><span class="p">(</span><span class="kt">u32</span><span class="p">),</span><span class="w">                </span><span class="c1">// Contents of memory location given by literal u32 value</span>
+<span class="p">}</span>
+
+<span class="cp">#[derive(Clone, Debug, PartialEq)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Instruction</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">ADD</span><span class="p">(</span><span class="n">Target</span><span class="p">,</span><span class="w"> </span><span class="n">Target</span><span class="p">,</span><span class="w"> </span><span class="n">Size</span><span class="p">),</span><span class="w">          </span><span class="c1">// Addition</span>
+<span class="w">    </span><span class="n">ADDA</span><span class="p">(</span><span class="n">Target</span><span class="p">,</span><span class="w"> </span><span class="n">Register</span><span class="p">,</span><span class="w"> </span><span class="n">Size</span><span class="p">),</span><span class="w">       </span><span class="c1">// Adding to an address register</span>
+<span class="w">                                        </span><span class="c1">//  doesn't affect flags</span>
+
+<span class="w">    </span><span class="n">Bcc</span><span class="p">(</span><span class="n">Condition</span><span class="p">,</span><span class="w"> </span><span class="kt">i32</span><span class="p">),</span><span class="w">                </span><span class="c1">// Branch Conditionally</span>
+<span class="w">    </span><span class="n">BRA</span><span class="p">(</span><span class="kt">i32</span><span class="p">),</span><span class="w">                           </span><span class="c1">// Branch to PC + offset</span>
+<span class="w">    </span><span class="n">BSR</span><span class="p">(</span><span class="kt">i32</span><span class="p">),</span><span class="w">                           </span><span class="c1">// Branch to Subroutine</span>
+<span class="w">                                        </span><span class="c1">//  (Push PC; PC = PC + offset)</span>
+
+<span class="w">    </span><span class="n">JMP</span><span class="p">(</span><span class="n">Target</span><span class="p">),</span><span class="w">                        </span><span class="c1">// Set the PC to the given value</span>
+<span class="w">    </span><span class="n">JSR</span><span class="p">(</span><span class="n">Target</span><span class="p">),</span><span class="w">                        </span><span class="c1">// Push PC to the stack and then</span>
+<span class="w">                                        </span><span class="c1">//  set PC to the given value</span>
+
+<span class="w">    </span><span class="n">LEA</span><span class="p">(</span><span class="n">Target</span><span class="p">,</span><span class="w"> </span><span class="n">Register</span><span class="p">),</span><span class="w">              </span><span class="c1">// Load effective address into</span>
+<span class="w">                                        </span><span class="c1">//  address register</span>
+
+<span class="w">    </span><span class="n">MOVE</span><span class="p">(</span><span class="n">Target</span><span class="p">,</span><span class="w"> </span><span class="n">Target</span><span class="p">,</span><span class="w"> </span><span class="n">Size</span><span class="p">),</span>
+<span class="w">    </span><span class="n">MOVEA</span><span class="p">(</span><span class="n">Target</span><span class="p">,</span><span class="w"> </span><span class="n">Register</span><span class="p">,</span><span class="w"> </span><span class="n">Size</span><span class="p">),</span>
+<span class="w">    </span><span class="n">NOP</span><span class="p">,</span>
+
+<span class="w">    </span><span class="n">RTS</span><span class="p">,</span><span class="w">                                </span><span class="c1">// Return from subroutine (Pop PC)</span>
+<span class="w">    </span><span class="n">STOP</span><span class="p">(</span><span class="kt">u16</span><span class="p">),</span><span class="w">                          </span><span class="c1">// Load word into SR register and</span>
+<span class="w">                                        </span><span class="c1">//  stop until an interrupt</span>
+
+<span class="w">    </span><span class="n">SUB</span><span class="p">(</span><span class="n">Target</span><span class="p">,</span><span class="w"> </span><span class="n">Target</span><span class="p">,</span><span class="w"> </span><span class="n">Size</span><span class="p">),</span><span class="w">          </span><span class="c1">// Subtraction</span>
+<span class="w">    </span><span class="n">SUBA</span><span class="p">(</span><span class="n">Target</span><span class="p">,</span><span class="w"> </span><span class="n">Register</span><span class="p">,</span><span class="w"> </span><span class="n">Size</span><span class="p">),</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>This is just an example of the instruction type definitions.  The full code can be found
+<a href="https://github.com/transistorfet/moa/blob/c3951999771bbb56f45e1a8c5cd0b61758aed778/src/cpus/m68k/instructions.rs">here</a>.  Note: it's
+possible to express more combinations with these instruction types than there are legal instruction
+combinations.  Some combinations are illegal on the 68000 but allowed on the 68020 and up, which the
+emulator supports using an enum to represent the different 68000 model numbers.  Most of the error
+checking and version difference checking is done during the decode phase (and an illegal instruction
+exception raised if necessary).  Some instructions have special behaviours, so they've been given
+their own variant in the enum, like ADDA to add a value to an address register which doesn't affect
+the condition codes the way the ADD instruction does, or CMPA to compare an address register which
+sign extends byte or word operands to long words before comparing them.</p>
+<h2 id="abstracting-time">Abstracting Time</h2>
+<p>In the case of a real CPU, the clock signal is what drives the CPU forward, but it's not the only
+device in the system that is driven by a clock.  I/O devices, such as the MC68681 serial port
+controller also take an input clock which affects their state over time.  In the case of the serial
+port controller, it has a timer which needs to count down periodically.  We're going to need some
+way of running code for different devices based on the clock, so lets use another trait for this.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">pub</span><span class="w"> </span><span class="k">type</span><span class="w"> </span><span class="nc">Clock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">u64</span><span class="p">;</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">type</span><span class="w"> </span><span class="nc">ClockElapsed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">u64</span><span class="p">;</span>
+
+<span class="k">trait</span><span class="w"> </span><span class="n">Steppable</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">memory</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="k">dyn</span><span class="w"> </span><span class="n">Addressable</span><span class="p">,</span><span class="w"> </span><span class="n">clock</span><span class="p">:</span><span class="w"> </span><span class="nc">Clock</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">ClockElapsed</span><span class="p">,</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>Now we can call the <code>step()</code> method each cycle and pass it the current clock value.  It will
+return the number of clock ticks that should elapse before the next call to that device's <code>step()</code>
+method.</p>
+<p>In the case of Computie, the CPU runs at 10 MHz, but the serial port controller runs on a separate
+clock at 3.6864 MHz.  In order to handle these different clock speeds, we can arbitrarily decide
+that our <code>Clock</code> value will be the number of nanoseconds from the start of the simulation, and
+<code>ClockElapsed</code> will be a difference in nanoseconds from the start of the start of the step.  We use
+a <code>u64</code> here so that we can keep track of simulation time in nanoseconds for approximately 584 which
+<em>should</em> be enough.  Keeping track of the time will allow us to later limit how much time passes
+(either speeding up or slowing down the execution relative to real-time).  With this, we can get a
+somewhat accurate count when simulating the timer in the serial controller chip.  That said, we won't
+worry about simulating CPU execution times, which varies quite a bit based on each instruction and
+it's operands, so can add a lot of complexity.</p>
+<h2 id="some-io">Some I/O</h2>
+<p>It's time to implement the MC68681 serial port controller.  Since it's both an Addressable device
+and a Steppable device, we'll need to implement both traits.  The registers we'll need to support
+first are the serial port channel A registers.  <code>REG_TBA_WR</code> is the transmit write buffer, which
+will output the character written to it over serial channel A.  We can just print the character
+written to this register to the screen for now.  We also need to implement the <code>REG_SRA_RD</code>
+register, which is a status register.  Bits 3 and 2 of the status register indicate if the transmit
+buffer for channel A is ready and empty.  The software for Computie checks the status register
+before writing data because the real MC68681 can't transmit fast enough to avoid a buffer overrun,
+so as long as we return a value with those bits set, the software will write characters to the
+<code>REG_TBA_WR</code> register.  This example also shows the <code>REG_RBA_RD</code> register for reading serial data
+in, but setting the <code>port_a_input</code> field is not shown for simplicity.  The full code has be viewed
+<a href="https://github.com/transistorfet/moa/blob/c3951999771bbb56f45e1a8c5cd0b61758aed778/src/peripherals/mc68681.rs">here</a></p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// Register Addresses (relative to mapped address)</span>
+<span class="k">const</span><span class="w"> </span><span class="n">REG_SRA_RD</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x03</span><span class="p">;</span><span class="w">       </span><span class="c1">// Ch A Status Register</span>
+<span class="k">const</span><span class="w"> </span><span class="n">REG_TBA_WR</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x07</span><span class="p">;</span><span class="w">       </span><span class="c1">// Ch A Byte to Transmit</span>
+<span class="k">const</span><span class="w"> </span><span class="n">REG_RBA_RD</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x07</span><span class="p">;</span><span class="w">       </span><span class="c1">// Ch A Received Byte</span>
+<span class="k">const</span><span class="w"> </span><span class="n">REG_ISR_RD</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x0B</span><span class="p">;</span><span class="w">       </span><span class="c1">// Interrupt Status Register</span>
+
+<span class="c1">// Status Register Bits (SRA/SRB)</span>
+<span class="k">const</span><span class="w"> </span><span class="n">SR_TX_EMPTY</span><span class="p">:</span><span class="w"> </span><span class="kt">u8</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="mh">0x08</span><span class="p">;</span>
+<span class="k">const</span><span class="w"> </span><span class="n">SR_TX_READY</span><span class="p">:</span><span class="w"> </span><span class="kt">u8</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="mh">0x04</span><span class="p">;</span>
+<span class="k">const</span><span class="w"> </span><span class="n">SR_RX_FULL</span><span class="p">:</span><span class="w"> </span><span class="kt">u8</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="mh">0x02</span><span class="p">;</span>
+<span class="k">const</span><span class="w"> </span><span class="n">SR_RX_READY</span><span class="p">:</span><span class="w"> </span><span class="kt">u8</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="mh">0x01</span><span class="p">;</span>
+
+<span class="c1">// Interrupt Status/Mask Bits (ISR/IVR)</span>
+<span class="k">const</span><span class="w"> </span><span class="n">ISR_TIMER_CHANGE</span><span class="p">:</span><span class="w"> </span><span class="kt">u8</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x08</span><span class="p">;</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">MC68681</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">port_a_status</span><span class="p">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">port_a_input</span><span class="p">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span>
+
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">is_timing</span><span class="p">:</span><span class="w"> </span><span class="kt">bool</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">timer</span><span class="p">:</span><span class="w"> </span><span class="kt">u16</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">int_status</span><span class="p">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Addressable</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">MC68681</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">len</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="mh">0x10</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">read</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">REG_SRA_RD</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SR_TX_READY</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">SR_TX_EMPTY</span><span class="p">;</span>
+<span class="w">            </span><span class="p">},</span>
+<span class="w">            </span><span class="n">REG_RBA_RD</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">port_a_input</span><span class="p">;</span>
+<span class="w">                </span><span class="bp">self</span><span class="p">.</span><span class="n">port_a_status</span><span class="w"> </span><span class="o">&amp;=</span><span class="w"> </span><span class="o">!</span><span class="n">SR_RX_READY</span><span class="p">;</span>
+<span class="w">            </span><span class="p">},</span>
+<span class="w">            </span><span class="n">REG_ISR_RD</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">int_status</span><span class="p">;</span>
+<span class="w">            </span><span class="p">},</span>
+<span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">debug</span><span class="o">!</span><span class="p">(</span><span class="s">"{}: read from {:0x} of {:0x}"</span><span class="p">,</span><span class="w"> </span><span class="n">DEV_NAME</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">debug</span><span class="o">!</span><span class="p">(</span><span class="s">"{}: writing {:0x} to {:0x}"</span><span class="p">,</span><span class="w"> </span><span class="n">DEV_NAME</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="n">addr</span><span class="p">);</span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">REG_TBA_WR</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">// Print the character</span>
+<span class="w">                </span><span class="fm">println!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">char</span><span class="p">);</span>
+<span class="w">            </span><span class="p">},</span>
+<span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Steppable</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">MC68681</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">memory</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="k">dyn</span><span class="w"> </span><span class="n">Addressable</span><span class="p">,</span><span class="w"> </span><span class="n">clock</span><span class="p">:</span><span class="w"> </span><span class="nc">Clock</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">ClockElapsed</span><span class="p">,</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">is_timing</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// Count down, wrapping around from 0 to 0xFFFF</span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">timer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">timer</span><span class="p">.</span><span class="n">wrapping_sub</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">timer</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">// Set the interrupt flag</span>
+<span class="w">                </span><span class="bp">self</span><span class="p">.</span><span class="n">int_status</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">ISR_TIMER_CHANGE</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// Delay for the number of nanoseconds of our 3.6864 MHz clock</span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(</span><span class="mi">1_000_000_000</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">3_686_400</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>This implementation is enough to print the <code>Welcome to the 68k Monitor!</code> message that the monitor
+software prints at boot, but we can't accept input yet.  Since Computie is meant to be connected via
+TTY, we could open a new pseudoterminal on the host computer (Linux in this case), and then connect to
+that pseudoterminal using <code>miniterm</code> like we would with the real Computie.  This will also free the
+console window for debugging and log messages.</p>
+<p>I originally implemented this using non-blocking input to check for a new character received on the
+machine-end of the pseudoterm, and then storing it in a single byte in the MC68681 object, but I
+later changed this to use a separate thread for polling, and <code>mpsc</code> channels to communicate with the
+simulation thread.  It's a bit too much code to include here but you can see the full tty
+implementation <a href="https://github.com/transistorfet/moa/blob/c3951999771bbb56f45e1a8c5cd0b61758aed778/src/host/traits.rs">here</a></p>
+<h2 id="box-it-up">Box It Up</h2>
+<p>We have 3 different devices objects at this point: the CPU (<code>M68k</code>), the memory (<code>MemoryBlock</code>), and
+the serial port controller (<code>MC68681</code>).  The CPU implements the <code>Steppable</code> trait, the memory
+implements the <code>Addressable</code> trait, and the controller implements both.  That last one is a problem
+because we can't have two mutable references to both the <code>Addressable</code> and <code>Steppable</code> trait objects
+of the controller at the same time, and rust doesn't yet support trait objects implementing multiple
+traits under these conditions.  Generics won't work either because we need to store the
+<code>Addressable</code>s in some kind of list, and items in a list must have the same type, so we need some
+other way of getting a reference to one of the trait objects only when we need to use it.  If we
+weren't so adamant about making this flexible and configurable, we could possibly keep this simpler,
+but alas, we are that adamant.  So lets introduce another trait, and some reference counted boxes!</p>
+<div class="codehilite"><pre><span></span><code><span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">Transmutable</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">as_steppable</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="k">mut</span><span class="w"> </span><span class="k">dyn</span><span class="w"> </span><span class="n">Steppable</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nb">None</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">as_addressable</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="k">mut</span><span class="w"> </span><span class="k">dyn</span><span class="w"> </span><span class="n">Addressable</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nb">None</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>The <code>Transmutable</code> trait can be implemented for each device object, and it has a method for each of
+our traits, which returns the trait object reference we need.  The default implementations return
+<code>None</code> to indicate that the trait is not implemented for that device object.  Device objects that
+<em>do</em> implement a given trait can redefine the <code>Transmutable</code> function to return <code>Some(self)</code>
+instead.  That means that any <code>Transmutable</code> trait object can be turned into either an <code>Addressable</code>
+or a <code>Steppable</code>, if supported by the underlying device object, and we have a way of checking that
+support at runtime.</p>
+<p>We top it all off with <code>TransmutableBox</code> which will allow us to have multiple references to any
+<code>Transmutable</code> objects, so we can pass them around to build our machine configuration.
+<code>wrap_transmutable</code> is a helper function to box up the device object during startup.  The device
+objects will be set up once at start up and then not changed until the program terminates, so we're
+not too concerned about reference cycles.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">pub</span><span class="w"> </span><span class="k">type</span><span class="w"> </span><span class="nc">TransmutableBox</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Rc</span><span class="o">&lt;</span><span class="n">RefCell</span><span class="o">&lt;</span><span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">Transmutable</span><span class="o">&gt;&gt;&gt;</span><span class="p">;</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">wrap_transmutable</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span><span class="w"> </span><span class="nc">Transmutable</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="o">'</span><span class="nb">static</span><span class="o">&gt;</span><span class="p">(</span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="nc">T</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">TransmutableBox</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Rc</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">RefCell</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="nb">Box</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">value</span><span class="p">)))</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>Using this method does introduce some performance penalties, but they are marginal relative to the
+decode and execution times of each instruction and we can still achieve pretty decent instruction
+cycle speeds despite the overhead.  If speed was a concern, we might try to avoid the <code>Transmutable</code>
+trait by also eliminating our <code>Steppable</code> trait and using a static machine configuration where the
+device object types are known at compile time and the top level function for each machine
+configuration would drive the simulation forward.  This latter style architecture is used by many
+other emulators, such as the <a href="https://github.com/TomHarte/CLK">ClockSignal (CLK)</a> emulator (which
+has a very well organized and easy to read codebase if you're looking for another emulator project
+to learn from).  The downside is that each machine requires more machine-specific top level code to
+tie the pieces together.</p>
+<p>If anyone knows of a better way to organize this so that we can get the best of both worlds, speed
+and the ability to abstract away all the devices without tight coupling, I'd love to heard about it.
+I'm always looking for new ways to design things in Rust.</p>
+<h2 id="an-addressable-of-addressables-the-data-bus">An Addressable of Addressables (The Data Bus)</h2>
+<p>With this new trait, all of our devices look the same regardless of the combinations of traits they
+implement.  We can store them all in the same list, as well as pass them to other objects to be
+turned into their respective trait references when needed.  We can now implement a <code>Bus</code> to hold our
+<code>Addressable</code>s so that we can access them all through the same address space</p>
+<div class="codehilite"><pre><span></span><code><span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Block</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">base</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">length</span><span class="p">:</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">dev</span><span class="p">:</span><span class="w"> </span><span class="nc">TransmutableBox</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Bus</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">blocks</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Block</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Bus</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="sd">/// Insert the devices in the correct address order</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">insert</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">base</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="p">,</span><span class="w"> </span><span class="n">length</span><span class="p">:</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">dev</span><span class="p">:</span><span class="w"> </span><span class="nc">TransmutableBox</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">block</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Block</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">base</span><span class="p">,</span><span class="w"> </span><span class="n">length</span><span class="p">,</span><span class="w"> </span><span class="n">dev</span><span class="w"> </span><span class="p">};</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">blocks</span><span class="p">.</span><span class="n">iter</span><span class="p">().</span><span class="n">position</span><span class="p">(</span><span class="o">|</span><span class="n">cur</span><span class="o">|</span><span class="w"> </span><span class="n">cur</span><span class="p">.</span><span class="n">base</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">block</span><span class="p">.</span><span class="n">base</span><span class="p">).</span><span class="n">unwrap_or</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">blocks</span><span class="p">.</span><span class="n">len</span><span class="p">());</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">blocks</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">block</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="sd">/// Find the device that's mapped to the given address range, and return</span>
+<span class="w">    </span><span class="sd">/// the device, as well as the given address minus the device's base address</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">get_device_at</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">:</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(</span><span class="n">TransmutableBox</span><span class="p">,</span><span class="w"> </span><span class="n">Address</span><span class="p">),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">block</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">blocks</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">block</span><span class="p">.</span><span class="n">base</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="p">(</span><span class="n">block</span><span class="p">.</span><span class="n">base</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">block</span><span class="p">.</span><span class="n">length</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Address</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">relative_addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">block</span><span class="p">.</span><span class="n">base</span><span class="p">;</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="n">relative_addr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">block</span><span class="p">.</span><span class="n">length</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="k">return</span><span class="w"> </span><span class="nb">Ok</span><span class="p">((</span><span class="n">block</span><span class="p">.</span><span class="n">dev</span><span class="p">.</span><span class="n">clone</span><span class="p">(),</span><span class="w"> </span><span class="n">relative_addr</span><span class="p">));</span>
+<span class="w">                </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="k">return</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span><span class="n">Error</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="o">&amp;</span><span class="fm">format!</span><span class="p">(</span><span class="s">"Error reading address {:#010x}"</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">)));</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span><span class="n">Error</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="o">&amp;</span><span class="fm">format!</span><span class="p">(</span><span class="s">"No segment found at {:#010x}"</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">)));</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Addressable</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Bus</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">len</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">block</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">blocks</span><span class="p">[</span><span class="bp">self</span><span class="p">.</span><span class="n">blocks</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span>
+<span class="w">        </span><span class="p">(</span><span class="n">block</span><span class="p">.</span><span class="n">base</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">block</span><span class="p">.</span><span class="n">length</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">read</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">dev</span><span class="p">,</span><span class="w"> </span><span class="n">relative_addr</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">get_device_at</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">len</span><span class="p">())</span><span class="o">?</span><span class="p">;</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dev</span><span class="p">.</span><span class="n">borrow_mut</span><span class="p">().</span><span class="n">as_addressable</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">read</span><span class="p">(</span><span class="n">relative_addr</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">);</span>
+<span class="w">        </span><span class="n">result</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">dev</span><span class="p">,</span><span class="w"> </span><span class="n">relative_addr</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">get_device_at</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">len</span><span class="p">())</span><span class="o">?</span><span class="p">;</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dev</span><span class="p">.</span><span class="n">borrow_mut</span><span class="p">().</span><span class="n">as_addressable</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">write</span><span class="p">(</span><span class="n">relative_addr</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">);</span>
+<span class="w">        </span><span class="n">result</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>Our <code>Bus</code> can act like an <code>Addressable</code>, so anything that's mapped to an address on the bus can be
+accessed through the same <code>&amp;mut Addressable</code> allowing us to pass it to the CPU's <code>.step()</code> method.</p>
+<h2 id="a-happy-little-system">A Happy Little System</h2>
+<p>The last piece we need is a way to call all of our <code>.step()</code> methods, but only the top level loop
+needs to be able to call them, so we don't need to package them up the same as <code>Addressable</code>.  We
+do, however, need to keep track of the passage of time.  We can make a <code>System</code> to hold our pieces,
+which can also hold our event tracking code, and our <code>Bus</code>.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">NextStep</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">next_clock</span><span class="p">:</span><span class="w"> </span><span class="nc">Clock</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">device</span><span class="p">:</span><span class="w"> </span><span class="nc">TransmutableBox</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">System</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">clock</span><span class="p">:</span><span class="w"> </span><span class="nc">Clock</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">bus</span><span class="p">:</span><span class="w"> </span><span class="nc">Bus</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">event_queue</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">NextStep</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">System</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="sd">/// Insert into the queue such that the last device is the next step to execute</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">queue_device</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">device_step</span><span class="p">:</span><span class="w"> </span><span class="nc">NextStep</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="o">..</span><span class="bp">self</span><span class="p">.</span><span class="n">event_queue</span><span class="p">.</span><span class="n">len</span><span class="p">()).</span><span class="n">rev</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">event_queue</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">next_clock</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">device_step</span><span class="p">.</span><span class="n">next_clock</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="bp">self</span><span class="p">.</span><span class="n">event_queue</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">device_step</span><span class="p">);</span>
+<span class="w">                </span><span class="k">return</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">event_queue</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">device_step</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="sd">/// Add a device to the system, and if it's `Steppable` then queue it</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">add_device</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">device</span><span class="p">:</span><span class="w"> </span><span class="nc">TransmutableBox</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">device</span><span class="p">.</span><span class="n">borrow_mut</span><span class="p">().</span><span class="n">as_steppable</span><span class="p">().</span><span class="n">is_some</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">queue_device</span><span class="p">(</span><span class="n">NextStep</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">device</span><span class="p">));</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="sd">/// Add a device to the system while also mapping it to the given address on the bus</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">add_addressable_device</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">:</span><span class="w"> </span><span class="nc">Address</span><span class="p">,</span><span class="w"> </span><span class="n">device</span><span class="p">:</span><span class="w"> </span><span class="nc">TransmutableBox</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">device</span><span class="p">.</span><span class="n">borrow_mut</span><span class="p">().</span><span class="n">as_addressable</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">len</span><span class="p">();</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">bus</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="n">length</span><span class="p">,</span><span class="w"> </span><span class="n">device</span><span class="p">.</span><span class="n">clone</span><span class="p">());</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">add_device</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="sd">/// Execute one step function from the queue</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// Remove the last item in the queue which is the next step to execute</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">next_device</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">event_queue</span><span class="p">.</span><span class="n">pop</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">clock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">next_device</span><span class="p">.</span><span class="n">next_clock</span><span class="p">;</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">memory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">bus</span><span class="p">.</span><span class="n">as_addressable</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// Execute the step function</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">diff</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">next_device</span><span class="p">.</span><span class="n">device</span><span class="p">.</span><span class="n">borrow_mut</span><span class="p">().</span><span class="n">as_steppable</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">step</span><span class="p">(</span><span class="n">memory</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">clock</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="w">        </span><span class="c1">// Adjust the device's next scheduled step</span>
+<span class="w">        </span><span class="n">next_device</span><span class="p">.</span><span class="n">next_clock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">clock</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">diff</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// Re-insert into the queue in order of next event</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">queue_device</span><span class="p">(</span><span class="n">next_device</span><span class="p">);</span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="sd">/// Run step functions until the system clock has changed by the given time in nanoseconds</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">run_for</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">elapsed</span><span class="p">:</span><span class="w"> </span><span class="nc">ClockElapsed</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">target</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">clock</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">elapsed</span><span class="p">;</span>
+
+<span class="w">        </span><span class="k">while</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">clock</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">target</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">step</span><span class="p">()</span><span class="o">?</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>In later iterations, I pass the whole immutable reference to <code>System</code> into the step functions, and
+put <code>Bus</code> inside a <code>RefCell</code> which can then be accessed if needed by the <code>.step()</code> function for the
+device object.  I've also added an interrupt controller to <code>System</code> which can be used for hardware
+interrupts from devices (<code>MC68681</code> in the case of Computie).</p>
+<h2 id="tying-it-all-together">Tying It All Together</h2>
+<p>Finally we can tie all our pieces together and set them in motion.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">Error</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">system</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">System</span><span class="p">::</span><span class="n">new</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// Create our Flash memory, pre-loaded with our Computie monitor firmware</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">rom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MemoryBlock</span><span class="p">::</span><span class="n">load</span><span class="p">(</span><span class="s">"binaries/computie/monitor.bin"</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="w">    </span><span class="n">system</span><span class="p">.</span><span class="n">add_addressable_device</span><span class="p">(</span><span class="mh">0x00000000</span><span class="p">,</span><span class="w"> </span><span class="n">wrap_transmutable</span><span class="p">(</span><span class="n">rom</span><span class="p">))</span><span class="o">?</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Create a RAM segment at the 1MB address</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ram</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MemoryBlock</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="fm">vec!</span><span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="mh">0x00100000</span><span class="p">]);</span>
+<span class="w">    </span><span class="n">system</span><span class="p">.</span><span class="n">add_addressable_device</span><span class="p">(</span><span class="mh">0x00100000</span><span class="p">,</span><span class="w"> </span><span class="n">wrap_transmutable</span><span class="p">(</span><span class="n">ram</span><span class="p">))</span><span class="o">?</span><span class="p">;</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">serial</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MC68681</span><span class="p">::</span><span class="n">new</span><span class="p">();</span>
+<span class="w">    </span><span class="c1">// Open a new PTY and launch a terminal emulator that in turn</span>
+<span class="w">    </span><span class="c1">// launches miniterm and connects to the other end of the PTY</span>
+<span class="w">    </span><span class="n">launch_terminal_emulator</span><span class="p">(</span><span class="n">serial</span><span class="p">.</span><span class="n">port_a</span><span class="p">.</span><span class="n">connect</span><span class="p">(</span><span class="nb">Box</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">SimplePty</span><span class="p">::</span><span class="n">open</span><span class="p">()</span><span class="o">?</span><span class="p">))</span><span class="o">?</span><span class="p">);</span>
+<span class="w">    </span><span class="n">system</span><span class="p">.</span><span class="n">add_addressable_device</span><span class="p">(</span><span class="mh">0x00700000</span><span class="p">,</span><span class="w"> </span><span class="n">wrap_transmutable</span><span class="p">(</span><span class="n">serial</span><span class="p">))</span><span class="o">?</span><span class="p">;</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">cpu</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">M68k</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">M68kType</span><span class="p">::</span><span class="n">MC68010</span><span class="p">);</span>
+<span class="w">    </span><span class="n">system</span><span class="p">.</span><span class="n">add_device</span><span class="p">(</span><span class="n">wrap_transmutable</span><span class="p">(</span><span class="n">cpu</span><span class="p">))</span><span class="o">?</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Run forever</span>
+<span class="w">    </span><span class="n">system</span><span class="p">.</span><span class="n">run_for</span><span class="p">(</span><span class="kt">u64</span><span class="p">::</span><span class="n">MAX</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="w">    </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="p">}</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">launch_terminal_emulator</span><span class="p">(</span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">thread</span><span class="p">;</span>
+<span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">time</span><span class="p">::</span><span class="n">Duration</span><span class="p">;</span>
+<span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">process</span><span class="p">::</span><span class="n">Command</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">Command</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="s">"x-terminal-emulator"</span><span class="p">).</span><span class="n">arg</span><span class="p">(</span><span class="s">"-e"</span><span class="p">).</span><span class="n">arg</span><span class="p">(</span><span class="o">&amp;</span><span class="fm">format!</span><span class="p">(</span><span class="s">"pyserial-miniterm {}"</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">)).</span><span class="n">spawn</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="n">thread</span><span class="p">::</span><span class="n">sleep</span><span class="p">(</span><span class="n">Duration</span><span class="p">::</span><span class="n">from_secs</span><span class="p">(</span><span class="mi">1</span><span class="p">));</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>We can now boot our monitor firmware and once interrupts are added, we can even boot the OS!</p>
+<p><img alt="alt text" src="./2021-11-making_an_emulator_files/2021-11-moa-computie-os.png" title="The Computie OS booting in Moa"></p>
+<h2 id="now-what">Now What</h2>
+<p>After only a couple weeks I was able to get all of the Computie software running, including the OS,
+albeit with a buggy and incomplete 68000 implementation.  That didn't seem too hard.  What else can
+I get running inside this emulator.  How about I try emulating the Sega Genesis!  How hard can it
+be?  Well... after a few months it's damn near broken me, but I'm determined to complete it
+eventually.  I've also taken detours into emulating the original Macintosh (simpler than the Genesis
+so easier to debug the 68k implementation with) and the TRS-80 (in order to test the Z80
+implementation I made to eventually use in the Genesis).  I'm hoping to write more about those other
+efforts, once I get them somewhat working.  Until then, happy emulating!</p>
+
+    </div>
+    <div id="footer">
+        <hr>
+        Made with <a href="https://jabberwocky.ca/generate.py">Python</a>
+        <div class="email">trans@jabberwocky.ca</div>
+    </div>
+</div>
+
+
+
+</body></html>

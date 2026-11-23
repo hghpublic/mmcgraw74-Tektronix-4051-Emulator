@@ -1,0 +1,215 @@
+
+body {
+  line-height: 1.4em;
+}
+
+.icon {
+  width: 32px;
+  height: 32px;
+}
+
+/* Page Layout */
+
+#main {
+  margin: 1em auto;
+  padding: 0px 10px;
+}
+
+@media all and (min-width: 1040px) {
+  #main {
+    width: 1040px;
+  }
+
+  #content {
+    float: right;
+    width: 760px;
+  }
+
+  #sidebar {
+    float: left;
+    width: 260px;
+    display: block;
+  }
+
+  #menu-toggle {
+    display: none;
+  }
+
+  #content img {
+    max-width: 750px;
+    max-height: 750px;
+  }
+
+  #theme-toggle {
+    float: right;
+  }
+}
+
+@media all and (max-width: 1040px) {
+  .toggle-trigger[type="checkbox"]:checked + .toggle {
+    display: none;
+  }
+}
+
+input.toggle-trigger
+{
+  position: absolute;
+  top: 10px;
+  right: 10px;
+
+  width: 32px;
+  height: 32px;
+  opacity: 0;
+  
+  cursor: pointer;
+}
+
+#menu-toggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 32px;
+}
+
+#theme-toggle {
+  cursor: pointer;
+  font-size: 12px;
+  height: 12px;
+}
+
+#content {
+  text-align: justify;
+}
+
+#sidebar {
+  line-height: 1.5em;
+}
+
+#sidebar h3 {
+  margin-top: 0.4em;
+  margin-bottom: 0.4em;
+}
+
+#sidebar .projects {
+  padding-left: 0em;
+  margin: 0em 0em;
+}
+
+#sidebar .projects li {
+  list-style: none;
+}
+
+#sidebar .posts {
+  padding-left: 1em;
+  margin: 0em 0em;
+}
+
+#sidebar .posts li {
+  margin-bottom: 0.4em;
+}
+
+#footer {
+  padding-top: 2px;
+  clear: both;
+  font-size: 9pt;
+}
+
+#footer .email {
+  float: right;
+}
+
+.view-on-github {
+  float: right;
+  font-size: 10pt;
+  margin-top: 1em;
+}
+
+/* Markdown Elements Styling */
+
+#content h1 {
+  text-align: left;
+  text-decoration: underline;
+  line-height: 1.25em;
+  font-size: 20pt;
+}
+
+#content h2 {
+  font-size: 16pt;
+}
+
+#content h3 {
+  font-size: 14pt;
+}
+
+#content h6 {       /* Started Date */
+}
+
+#content ul {
+  text-align: left;
+}
+
+/* Images */
+
+#content img {
+  max-width: 100%;
+  max-height: auto;
+}
+
+#content img.thumb {
+  max-width: 200px;
+  max-height: 200px;
+}
+
+/* Code Block */
+
+#content pre {
+  height: auto;
+  width: auto;
+  margin-top: 0px;
+  margin-bottom: 0px;
+  padding: 10px 10px 10px 10px;
+  font-size: 11pt;
+}
+
+#content code:not(pre > code) {
+  padding: 0.2em 0.4em;
+  font-size: 0.85em;
+}
+
+/* Project List Entries (Main Index) */
+
+.project {
+  border: 1px solid black;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 1em;
+  height: auto;
+  overflow: hidden;
+}
+
+.project h2 {
+  margin: 0px;
+  padding: 0px;
+}
+
+.project img {
+  margin: 10px;
+  float: right;
+  height: auto;
+}
+
+/* News Entry */
+
+#content h5 {           /* The news entry header, which uses `#####` */
+  margin-top: 0px;
+  margin-bottom: 0px;
+}
+
+#content .entry em {    /* The date inside a news entry */
+  font-size: 9pt;
+  font-style: italic;
+  text-align: right;
+  padding: 2px 4px 2px 4px;
+  margin-right: 2px;
+}
+
