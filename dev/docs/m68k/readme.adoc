@@ -3,3 +3,8 @@
 https://github.com/slippyex/r68k
 
 https://github.com/benletchford/m68k-rs
+
+
+Amazing Tektronix 4054 with Option 30 and 31 Dynamic Graphics
+
+https://forum.vcfed.org/index.php?threads/amazing-tektronix-4054-with-option-30-and-31-dynamic-graphics.1239131/
